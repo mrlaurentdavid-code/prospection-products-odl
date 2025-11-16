@@ -14,6 +14,20 @@ export const jinaScrapedDataSchema = z.object({
 
 export type JinaScrapedData = z.infer<typeof jinaScrapedDataSchema>;
 
+// Validator pour un contact
+export const contactSchema = z.object({
+  name: z.string().min(1, 'Le nom du contact est requis'),
+  title: z.string().nullable(), // Poste (Sales Manager, Business Dev, etc.)
+  email: z.string().email().optional().nullable(),
+  linkedin_url: z.string().url().optional().nullable(),
+  location: z.string().nullable(), // Ville, Pays
+  phone: z.string().optional().nullable(),
+  source: z.enum(['claude_extraction', 'hunter_io', 'manual']).default('claude_extraction'),
+  confidence: z.number().min(0).max(1).default(0.5),
+});
+
+export type Contact = z.infer<typeof contactSchema>;
+
 // Validator pour l'analyse Claude
 export const claudeAnalysisSchema = z.object({
   product: z.object({
@@ -34,6 +48,7 @@ export const claudeAnalysisSchema = z.object({
     estimatedMSRP_CH: z.number().min(0).optional().nullable(),
     sourceURL: z.string().url().optional().nullable(),
   }),
+  contacts: z.array(contactSchema).default([]), // NOUVEAU: Array de contacts
   confidence: z.number().min(0).max(1),
 });
 

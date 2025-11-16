@@ -74,7 +74,13 @@ INSTRUCTIONS:
 7. Cherche la page LinkedIn de l'entreprise (pas un profil personnel)
 8. Identifie le pays de l'entreprise (code ISO: CH, FR, DE, IT, US, etc.)
 9. Estime le prix public conseillé (MSRP) en EUR et CHF si possible
-10. Fournis un score de confiance (0.00 à 1.00) basé sur la qualité des données
+10. **NOUVEAU: Cherche des contacts décisionnaires européens** dans le contenu:
+    - Recherche des noms de personnes avec leur fonction (Sales Manager, Business Dev, Export Manager, CEO, etc.)
+    - Privilégie les contacts basés en Europe (CH, FR, DE, IT, NL, UK, ES, etc.)
+    - Si trouvés: extraire nom, titre/fonction, email, LinkedIn profile URL, localisation
+    - Focus sur: directeurs commerciaux, business development, export, ventes
+    - Maximum 3 contacts les plus pertinents
+11. Fournis un score de confiance (0.00 à 1.00) basé sur la qualité des données
 
 Retourne ce JSON (rien d'autre):
 {
@@ -96,6 +102,18 @@ Retourne ce JSON (rien d'autre):
     "estimatedMSRP_CH": 0 ou null,
     "sourceURL": "lien marketplace concurrent ou null"
   },
+  "contacts": [
+    {
+      "name": "John Doe",
+      "title": "Sales Manager Europe",
+      "email": "j.doe@company.com ou null",
+      "linkedin_url": "https://linkedin.com/in/johndoe ou null",
+      "location": "Paris, France ou null",
+      "phone": "+33 6 XX XX XX XX ou null",
+      "source": "claude_extraction",
+      "confidence": 0.85
+    }
+  ],
   "confidence": 0.95
 }
 
@@ -103,7 +121,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte explicatif avant ou après.
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
+      max_tokens: 3000, // Augmenté pour inclure les contacts
       messages: [
         {
           role: 'user',

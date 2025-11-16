@@ -77,6 +77,8 @@ export async function POST(request: NextRequest) {
 
     // Étape 5: Sauvegarder dans Supabase (via RPC)
     console.log('💾 Step 4: Saving to Supabase...');
+    console.log('✅ Contacts found:', analysis.contacts.length);
+
     const { data: product, error: insertError } = await supabase
       .rpc('insert_prospection_product', {
         p_source_url: url,
@@ -98,6 +100,7 @@ export async function POST(request: NextRequest) {
         p_company_country: analysis.company.country || null,
         p_ai_confidence_score: analysis.confidence,
         p_ai_raw_analysis: analysis as any,
+        p_contacts: analysis.contacts || [], // NOUVEAU: Contacts
       });
 
     if (insertError) {
@@ -116,6 +119,7 @@ export async function POST(request: NextRequest) {
         subcategory: analysis.product.subcategory,
         company: analysis.company.name,
         confidence: analysis.confidence,
+        contactsFound: analysis.contacts.length, // NOUVEAU: Nombre de contacts
       },
       message: 'Produit analysé et sauvegardé avec succès',
     });

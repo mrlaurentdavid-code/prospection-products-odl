@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProductImage } from "@/components/ProductImage";
+import { ContactsList } from "@/components/ContactsList";
 import { Product } from "@/lib/supabase/types";
+import { Contact } from "@/lib/utils/validators";
 import {
   Accordion,
   AccordionContent,
@@ -188,6 +190,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               </div>
             </CardContent>
           </Card>
+
+          {/* Contacts décisionnaires */}
+          <ContactsList contacts={(product.contacts as Contact[]) || []} />
         </div>
 
         {/* Colonne latérale */}
