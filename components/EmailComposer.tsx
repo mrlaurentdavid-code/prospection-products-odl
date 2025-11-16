@@ -28,6 +28,7 @@ interface EmailComposerProps {
   productName: string;
   productCategory: string | null;
   companyName: string;
+  productId: string; // NOUVEAU: ID du produit pour changer le statut
 }
 
 interface EmailTemplate {
@@ -107,6 +108,7 @@ export function EmailComposer({
   productName,
   productCategory,
   companyName,
+  productId,
 }: EmailComposerProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>('first_contact');
   const [subject, setSubject] = useState('');
@@ -157,8 +159,27 @@ export function EmailComposer({
       // Simulation pour l'instant
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      alert('Email envoyé avec succès ! (simulation)');
+      // Changer le statut du produit à "contacted"
+      console.log('🔄 Updating product status to "contacted"...');
+      const statusResponse = await fetch(`/api/products/${productId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'contacted' }),
+      });
+
+      if (!statusResponse.ok) {
+        console.error('Failed to update product status');
+      } else {
+        console.log('✅ Product status updated to "contacted"');
+      }
+
+      alert('Email envoyé avec succès ! (simulation)\n\nLe statut du produit a été changé à "Contacté".');
       onClose();
+
+      // Rafraîchir la page pour voir le changement de statut
+      window.location.reload();
     } catch (error) {
       console.error('Error sending email:', error);
       alert('Erreur lors de l\'envoi de l\'email');

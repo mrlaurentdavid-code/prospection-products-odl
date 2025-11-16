@@ -12,6 +12,7 @@ interface ContactsListProps {
   productName: string;
   productCategory: string | null;
   companyName: string;
+  productId: string; // NOUVEAU: ID du produit
 }
 
 /**
@@ -63,7 +64,7 @@ function getSourceBadgeVariant(source: Contact['source']): 'default' | 'secondar
 /**
  * Composant pour afficher une liste de contacts
  */
-export function ContactsList({ contacts, productName, productCategory, companyName }: ContactsListProps) {
+export function ContactsList({ contacts, productName, productCategory, companyName, productId }: ContactsListProps) {
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
@@ -200,6 +201,7 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
           productName={productName}
           productCategory={productCategory}
           companyName={companyName}
+          productId={productId}
         />
       )}
     </Card>

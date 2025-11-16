@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProductImage } from "@/components/ProductImage";
 import { ContactsList } from "@/components/ContactsList";
+import { StatusBadge } from "@/components/StatusBadge";
 import { Product } from "@/lib/supabase/types";
 import { Contact } from "@/lib/utils/validators";
 import {
@@ -93,9 +94,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           </div>
 
           <div className="flex flex-col gap-2 items-end">
-            <Badge className={statusColors[product.status]}>
-              {statusLabels[product.status]}
-            </Badge>
+            <StatusBadge productId={product.id} currentStatus={product.status} />
             {product.ai_confidence_score !== null && (
               <Badge
                 variant="outline"
@@ -197,6 +196,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             productName={product.name}
             productCategory={product.category}
             companyName={product.company_name || ''}
+            productId={product.id}
           />
         </div>
 
