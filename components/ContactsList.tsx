@@ -1,10 +1,17 @@
+"use client";
+
+import { useState } from 'react';
 import { Contact } from '@/lib/utils/validators';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { EmailComposer } from '@/components/EmailComposer';
 
 interface ContactsListProps {
   contacts: Contact[];
+  productName: string;
+  productCategory: string | null;
+  companyName: string;
 }
 
 /**
@@ -56,7 +63,15 @@ function getSourceBadgeVariant(source: Contact['source']): 'default' | 'secondar
 /**
  * Composant pour afficher une liste de contacts
  */
-export function ContactsList({ contacts }: ContactsListProps) {
+export function ContactsList({ contacts, productName, productCategory, companyName }: ContactsListProps) {
+  const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  const handleContactClick = (contact: Contact) => {
+    setSelectedContact(contact);
+    setEmailComposerOpen(true);
+  };
+
   if (!contacts || contacts.length === 0) {
     return (
       <Card>
@@ -167,13 +182,7 @@ export function ContactsList({ contacts }: ContactsListProps) {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  if (contact.email) {
-                    window.location.href = `mailto:${contact.email}`;
-                  } else if (contact.linkedin_url) {
-                    window.open(contact.linkedin_url, '_blank');
-                  }
-                }}
+                onClick={() => handleContactClick(contact)}
               >
                 Contacter
               </Button>
@@ -181,6 +190,18 @@ export function ContactsList({ contacts }: ContactsListProps) {
           </div>
         ))}
       </CardContent>
+
+      {/* Modal de composition d'email */}
+      {selectedContact && (
+        <EmailComposer
+          open={emailComposerOpen}
+          onClose={() => setEmailComposerOpen(false)}
+          contact={selectedContact}
+          productName={productName}
+          productCategory={productCategory}
+          companyName={companyName}
+        />
+      )}
     </Card>
   );
 }

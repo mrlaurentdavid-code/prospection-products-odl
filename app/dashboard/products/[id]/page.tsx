@@ -192,7 +192,12 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           </Card>
 
           {/* Contacts décisionnaires */}
-          <ContactsList contacts={(product.contacts as Contact[]) || []} />
+          <ContactsList
+            contacts={(product.contacts as Contact[]) || []}
+            productName={product.name}
+            productCategory={product.category}
+            companyName={product.company_name || ''}
+          />
         </div>
 
         {/* Colonne latérale */}

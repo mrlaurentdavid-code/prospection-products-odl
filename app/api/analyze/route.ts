@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { scrapeWithJinaRetry } from '@/lib/services/jina-scraper';
 import { analyzeProductRetry } from '@/lib/services/claude-analyzer';
+import { findCompanyContacts, mergeContacts } from '@/lib/services/hunter-io';
 import { analyzeRequestSchema } from '@/lib/utils/validators';
 import { AI_CONFIDENCE_THRESHOLD } from '@/lib/utils/constants';
 
@@ -56,15 +57,39 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ Low confidence score:', analysis.confidence);
     }
 
+    // Étape 3.5: Enrichir les contacts avec Hunter.io (si domaine disponible)
+    if (analysis.company.website && process.env.HUNTER_API_KEY) {
+      console.log('🔍 Step 3.5: Enriching contacts with Hunter.io...');
+      try {
+        const hunterContacts = await findCompanyContacts(analysis.company.website, 5);
+
+        if (hunterContacts.length > 0) {
+          console.log(`✅ Hunter.io found ${hunterContacts.length} contacts`);
+          // Merger les contacts Claude + Hunter.io
+          analysis.contacts = mergeContacts(analysis.contacts, hunterContacts);
+          console.log(`✅ Total contacts after merge: ${analysis.contacts.length}`);
+        } else {
+          console.log('ℹ️ Hunter.io found no contacts');
+        }
+      } catch (error) {
+        console.error('⚠️ Hunter.io error (continuing without enrichment):', error);
+        // Continue sans Hunter.io en cas d'erreur
+      }
+    } else if (!analysis.company.website) {
+      console.log('ℹ️ No company website found, skipping Hunter.io enrichment');
+    } else if (!process.env.HUNTER_API_KEY) {
+      console.log('ℹ️ HUNTER_API_KEY not configured, skipping contact enrichment');
+    }
+
     // Étape 4: Trouver les IDs des catégories
     const category = analysis.product.category
       ? categories?.find(
-          c => c.name_en.toLowerCase() === analysis.product.category?.toLowerCase()
+          c => c.name_en?.toLowerCase() === analysis.product.category?.toLowerCase()
         )
       : null;
     const subcategory = analysis.product.subcategory
       ? subcategories?.find(
-          s => s.name_en.toLowerCase() === analysis.product.subcategory?.toLowerCase()
+          s => s.name_en?.toLowerCase() === analysis.product.subcategory?.toLowerCase()
         )
       : null;
 

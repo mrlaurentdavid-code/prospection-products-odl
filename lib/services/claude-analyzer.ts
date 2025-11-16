@@ -59,7 +59,7 @@ export async function analyzeProduct(
 DONNÉES DU PRODUIT:
 Title: ${scrapedData.title || 'N/A'}
 Description: ${scrapedData.description || 'N/A'}
-Content: ${scrapedData.content.slice(0, 5000)} // Limité à 5000 caractères
+Content: ${scrapedData.content.slice(0, 15000)} // Limité à 15000 caractères (augmenté pour voir plus de contenu)
 
 CATÉGORIES DISPONIBLES (TU DOIS CHOISIR PARMI CES CATÉGORIES UNIQUEMENT):
 ${categoriesList}
@@ -121,7 +121,7 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte explicatif avant ou après.
 
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 3000, // Augmenté pour inclure les contacts
+      max_tokens: 4000, // Augmenté pour traiter plus de contenu et inclure les contacts
       messages: [
         {
           role: 'user',
