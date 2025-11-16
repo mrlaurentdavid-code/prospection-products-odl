@@ -37,12 +37,56 @@ function extractDomain(url: string): string {
 }
 
 /**
+ * Extrait le domaine parent international (.com) depuis un domaine local
+ * Exemples:
+ * - segwayfrance.com → segway.com
+ * - example.fr → example.com
+ * - company.de → company.com
+ */
+function getParentDomain(domain: string): string | null {
+  // Indicateurs de pays à retirer du nom de domaine
+  const countryIndicators = [
+    'france', 'deutschland', 'schweiz', 'suisse', 'svizzera',
+    'italia', 'espana', 'nederland', 'belgique', 'osterreich',
+    'polska', 'uk', 'usa', 'canada'
+  ];
+
+  // TLDs pays à remplacer par .com
+  const countryTLDs = ['.fr', '.de', '.ch', '.it', '.es', '.nl', '.be', '.at', '.pl', '.uk', '.co.uk'];
+
+  let baseDomain = domain.toLowerCase();
+
+  // Retirer l'extension actuelle
+  const parts = baseDomain.split('.');
+  const extension = `.${parts[parts.length - 1]}`;
+  const nameWithoutTLD = parts.slice(0, -1).join('.');
+
+  // Stratégie 1: Retirer les indicateurs de pays du nom
+  for (const indicator of countryIndicators) {
+    if (nameWithoutTLD.includes(indicator)) {
+      const cleanName = nameWithoutTLD.replace(indicator, '');
+      if (cleanName.length > 0) {
+        return `${cleanName}.com`;
+      }
+    }
+  }
+
+  // Stratégie 2: Si TLD pays, essayer .com
+  if (countryTLDs.includes(extension) || countryTLDs.includes(`.${parts.slice(-2).join('.')}`)) {
+    return `${nameWithoutTLD}.com`;
+  }
+
+  return null;
+}
+
+/**
  * Recherche les contacts d'une entreprise via Hunter.io
  *
  * Hunter.io Domain Search API:
  * - Plan gratuit: 50 recherches/mois
  * - Retourne emails + LinkedIn profiles
  * - Confidence score pour chaque email
+ * - Fallback automatique sur domaine parent si domaine local sans résultat
  *
  * @param companyWebsite - URL du site web de l'entreprise
  * @param limit - Nombre max de contacts à retourner (défaut: 5)
@@ -62,15 +106,41 @@ export async function findCompanyContacts(
     const domain = extractDomain(companyWebsite);
     const apiKey = process.env.HUNTER_API_KEY;
 
-    const url = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${apiKey}&limit=${limit}`;
-
-    const response = await fetch(url);
+    // Tentative 1: Domaine original
+    console.log(`🔍 Hunter.io: Searching for ${domain}...`);
+    let url = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${apiKey}&limit=${limit}`;
+    let response = await fetch(url);
 
     if (!response.ok) {
       throw new Error(`Hunter.io API error: ${response.status} ${response.statusText}`);
     }
 
-    const data: HunterDomainSearchResponse = await response.json();
+    let data: HunterDomainSearchResponse = await response.json();
+
+    // Si aucun résultat, essayer le domaine parent
+    if (data.data.emails.length === 0) {
+      const parentDomain = getParentDomain(domain);
+
+      if (parentDomain && parentDomain !== domain) {
+        console.log(`ℹ️ Hunter.io: No results for ${domain}, trying parent domain ${parentDomain}...`);
+
+        url = `https://api.hunter.io/v2/domain-search?domain=${parentDomain}&api_key=${apiKey}&limit=${limit}`;
+        response = await fetch(url);
+
+        if (response.ok) {
+          const parentData: HunterDomainSearchResponse = await response.json();
+
+          if (parentData.data.emails.length > 0) {
+            console.log(`✅ Hunter.io: Found ${parentData.data.emails.length} contacts on parent domain ${parentDomain}`);
+            data = parentData;
+          } else {
+            console.log(`ℹ️ Hunter.io: No contacts found on parent domain either`);
+          }
+        }
+      } else {
+        console.log(`ℹ️ Hunter.io: No parent domain to try for ${domain}`);
+      }
+    }
 
     // Mots-clés prioritaires pour marchés Suisse/Européen (score +2)
     const swissEuropeKeywords = [

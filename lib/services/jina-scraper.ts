@@ -74,16 +74,43 @@ export async function scrapeWithJina(url: string): Promise<JinaScrapedData> {
       })
       .filter(url => {
         const urlLower = url.toLowerCase();
+
         // Exclure les images data: et SVG
         if (url.includes('data:image') || urlLower.endsWith('.svg')) return false;
-        // Exclure les logos, icônes, sprites
-        if (urlLower.includes('logo') || urlLower.includes('icon') || urlLower.includes('sprite')) return false;
 
-        // Exclure les images avec ratio d'aspect > 3:1 (bannières/logos)
+        // Exclure les logos, icônes, sprites, schémas
+        const excludeKeywords = [
+          'logo', 'icon', 'sprite', 'favicon',
+          'schema', 'diagram', 'illustration', 'picto',
+          'weight', 'compare', 'comparison', 'chart',
+          'thumbnail', 'thumb', 'badge', 'stamp',
+          'banner', 'header', 'footer', 'nav',
+          'menu', 'button', 'arrow', 'chevron',
+          'placeholder', 'loading', 'spinner'
+        ];
+
+        if (excludeKeywords.some(keyword => urlLower.includes(keyword))) return false;
+
+        // Exclure les images avec dimensions dans l'URL qui sont trop petites
         const dims = extractDimensions(url);
         if (dims) {
+          // Minimum 200x200 pour être une vraie photo produit
+          if (dims.width < 200 || dims.height < 200) return false;
+
+          // Exclure les images avec ratio d'aspect étrange (bannières, boutons)
           const ratio = dims.width / dims.height;
-          if (ratio > 3 || ratio < 0.5) return false; // Trop large ou trop haut
+          if (ratio > 2.5 || ratio < 0.4) return false;
+        }
+
+        // Exclure les URLs avec des patterns suspects
+        if (/\d{1,3}x\d{1,3}/.test(urlLower)) {
+          // Pattern genre "50x50" ou "100x100" (petites icônes)
+          const match = urlLower.match(/(\d{1,3})x(\d{1,3})/);
+          if (match) {
+            const w = parseInt(match[1]);
+            const h = parseInt(match[2]);
+            if (w < 200 || h < 200) return false;
+          }
         }
 
         return true;
@@ -94,17 +121,35 @@ export async function scrapeWithJina(url: string): Promise<JinaScrapedData> {
       const urlLower = url.toLowerCase();
       let score = 0;
 
-      // Bonus pour images produit
-      if (urlLower.includes('product') || urlLower.includes('item')) score += 10;
-      if (urlLower.includes('gallery') || urlLower.includes('image')) score += 5;
+      // BONUS ÉLEVÉ pour vraies images produit
+      if (urlLower.includes('product')) score += 20;
+      if (urlLower.includes('item')) score += 15;
+      if (urlLower.includes('gallery')) score += 15;
+      if (urlLower.includes('main')) score += 10;
+      if (urlLower.includes('hero')) score += 10;
+      if (urlLower.includes('featured')) score += 10;
 
-      // Malus pour images UI/navigation
-      if (urlLower.includes('banner') || urlLower.includes('header')) score -= 5;
-      if (urlLower.includes('footer') || urlLower.includes('nav')) score -= 5;
-      if (urlLower.includes('menu') || urlLower.includes('button')) score -= 5;
+      // Bonus pour extensions d'images courantes (photos)
+      if (urlLower.endsWith('.jpg') || urlLower.endsWith('.jpeg')) score += 5;
+      if (urlLower.endsWith('.png')) score += 3;
+      if (urlLower.endsWith('.webp')) score += 5;
 
       // Bonus pour URLs avec CDN produit
-      if (urlLower.includes('cdn') && urlLower.includes('product')) score += 5;
+      if (urlLower.includes('cdn')) score += 5;
+      if (urlLower.includes('shopify') && urlLower.includes('product')) score += 10;
+      if (urlLower.includes('woocommerce')) score += 5;
+
+      // Bonus pour dimensions larges (vraies photos produit sont généralement grandes)
+      const dims = extractDimensions(url);
+      if (dims) {
+        if (dims.width >= 800 || dims.height >= 800) score += 10;
+        if (dims.width >= 1200 || dims.height >= 1200) score += 5;
+      }
+
+      // Malus pour patterns suspects
+      if (urlLower.includes('_thumb')) score -= 10;
+      if (urlLower.includes('_small')) score -= 10;
+      if (urlLower.includes('-xs') || urlLower.includes('-sm')) score -= 10;
 
       return { url, score };
     });
@@ -114,6 +159,14 @@ export async function scrapeWithJina(url: string): Promise<JinaScrapedData> {
       .sort((a, b) => b.score - a.score)
       .map(item => item.url)
       .slice(0, 10);
+
+    // Debug logging pour voir les images sélectionnées
+    if (images.length > 0) {
+      console.log(`📸 Jina: Found ${allImages.length} images, selected top ${images.length} after scoring`);
+      console.log(`📸 Top image score: ${scoredImages[0]?.score || 0}`);
+    } else {
+      console.log('⚠️ Jina: No product images found after filtering');
+    }
 
     // Extraire une description (premiers 500 caractères du contenu sans markdown)
     const cleanContent = content

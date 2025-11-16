@@ -168,7 +168,30 @@ export function EmailComposer({
       );
 
       if (confirmed) {
-        // Changer le statut du produit à "contacted"
+        // 1. Enregistrer l'email envoyé dans la BDD
+        console.log('📝 Logging email sent...');
+        const logResponse = await fetch('/api/email/log', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId,
+            toEmail: contact.email,
+            subject,
+            body,
+            contactName: contact.name,
+            contactTitle: contact.title || null,
+          }),
+        });
+
+        if (!logResponse.ok) {
+          console.error('Failed to log email');
+        } else {
+          console.log('✅ Email logged successfully');
+        }
+
+        // 2. Changer le statut du produit à "contacted"
         console.log('🔄 Updating product status to "contacted"...');
         const statusResponse = await fetch(`/api/products/${productId}`, {
           method: 'PATCH',

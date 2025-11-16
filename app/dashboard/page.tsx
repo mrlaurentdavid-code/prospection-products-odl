@@ -46,20 +46,22 @@ export default async function DashboardPage() {
           </Card>
         </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Contactés cette semaine
-            </CardTitle>
-            <Badge variant="default">{contactedCount}</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{contactedCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Emails envoyés
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/contacted">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Contactés cette semaine
+              </CardTitle>
+              <Badge variant="default">{contactedCount}</Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{contactedCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Emails envoyés
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -76,45 +78,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Phase 1 Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Phase 1: Foundation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <span className="text-sm text-gray-700">Documentation complète ✅</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <span className="text-sm text-gray-700">Next.js 14+ configuré ✅</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <span className="text-sm text-gray-700">Supabase configuré ✅</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <span className="text-sm text-gray-700">Migrations SQL appliquées ✅</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <span className="text-sm text-gray-700">shadcn/ui installé ✅</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <span className="text-sm text-gray-700">Layout + Navbar créés ✅</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></div>
-              <span className="text-sm text-gray-700">Authentification en cours... 🚧</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
