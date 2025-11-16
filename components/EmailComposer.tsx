@@ -151,38 +151,51 @@ export function EmailComposer({
     setSending(true);
 
     try {
-      // TODO: Appeler l'API /api/email/send
-      console.log('Sending email to:', contact.email);
-      console.log('Subject:', subject);
-      console.log('Body:', body);
+      // Créer le lien mailto: avec sujet et corps
+      const mailtoLink = `mailto:${contact.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
-      // Simulation pour l'instant
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      console.log('📧 Opening email client for:', contact.email);
 
-      // Changer le statut du produit à "contacted"
-      console.log('🔄 Updating product status to "contacted"...');
-      const statusResponse = await fetch(`/api/products/${productId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'contacted' }),
-      });
+      // Ouvrir le client mail
+      window.location.href = mailtoLink;
 
-      if (!statusResponse.ok) {
-        console.error('Failed to update product status');
+      // Petite pause pour laisser le client mail s'ouvrir
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Demander confirmation avant de changer le statut
+      const confirmed = confirm(
+        'Avez-vous envoyé l\'email ?\n\nCliquez OK pour marquer le produit comme "Contacté".\nCliquez Annuler si vous n\'avez pas envoyé l\'email.'
+      );
+
+      if (confirmed) {
+        // Changer le statut du produit à "contacted"
+        console.log('🔄 Updating product status to "contacted"...');
+        const statusResponse = await fetch(`/api/products/${productId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: 'contacted' }),
+        });
+
+        if (!statusResponse.ok) {
+          console.error('Failed to update product status');
+          alert('Erreur lors de la mise à jour du statut');
+        } else {
+          console.log('✅ Product status updated to "contacted"');
+        }
+
+        onClose();
+
+        // Rafraîchir la page pour voir le changement de statut
+        window.location.reload();
       } else {
-        console.log('✅ Product status updated to "contacted"');
+        console.log('ℹ️ User cancelled status update');
+        onClose();
       }
-
-      alert('Email envoyé avec succès ! (simulation)\n\nLe statut du produit a été changé à "Contacté".');
-      onClose();
-
-      // Rafraîchir la page pour voir le changement de statut
-      window.location.reload();
     } catch (error) {
-      console.error('Error sending email:', error);
-      alert('Erreur lors de l\'envoi de l\'email');
+      console.error('Error opening email client:', error);
+      alert('Erreur lors de l\'ouverture du client mail');
     } finally {
       setSending(false);
     }

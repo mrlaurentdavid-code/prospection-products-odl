@@ -6,9 +6,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useRouter } from 'next/navigation';
+import { ChevronDown, Trash2 } from 'lucide-react';
 
 interface StatusBadgeProps {
   productId: string;
@@ -57,15 +59,52 @@ export function StatusBadge({ productId, currentStatus }: StatusBadgeProps) {
         body: JSON.stringify({ status: newStatus }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to update status');
+        console.error('❌ API Error:', data);
+        throw new Error(data.error || 'Failed to update status');
       }
 
+      console.log('✅ Status updated successfully:', data);
       setStatus(newStatus);
       router.refresh(); // Rafraîchir la page pour voir les changements
     } catch (error) {
-      console.error('Error updating status:', error);
-      alert('Erreur lors de la mise à jour du statut');
+      console.error('❌ Error updating status:', error);
+      alert(`Erreur lors de la mise à jour du statut: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirmed = confirm(
+      'Êtes-vous sûr de vouloir supprimer définitivement ce produit ?\n\nCette action est irréversible.'
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ API Error:', data);
+        throw new Error(data.error || 'Failed to delete product');
+      }
+
+      console.log('✅ Product deleted successfully:', data);
+
+      // Rediriger vers la liste des produits
+      router.push('/dashboard/products');
+    } catch (error) {
+      console.error('❌ Error deleting product:', error);
+      alert(`Erreur lors de la suppression du produit: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -79,10 +118,11 @@ export function StatusBadge({ productId, currentStatus }: StatusBadgeProps) {
         <Badge
           className={`${currentConfig.className} cursor-pointer transition-colors ${
             loading ? 'opacity-50' : ''
-          }`}
+          } flex items-center gap-1.5`}
           disabled={loading}
         >
-          {currentConfig.icon} {currentConfig.label}
+          <span>{currentConfig.icon} {currentConfig.label}</span>
+          <ChevronDown className="h-3 w-3" />
         </Badge>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
@@ -97,6 +137,14 @@ export function StatusBadge({ productId, currentStatus }: StatusBadgeProps) {
             {key === status && <span className="ml-auto text-blue-600">✓</span>}
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={handleDelete}
+          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Supprimer
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

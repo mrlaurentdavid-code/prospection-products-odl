@@ -66,7 +66,7 @@ ${categoriesList}
 
 INSTRUCTIONS:
 1. Extrait le nom exact du produit (en anglais si possible)
-2. Rédige une description concise (max 500 caractères)
+2. **Rédige une description concise EN FRANÇAIS** (max 500 caractères) - traduis si nécessaire
 3. Choisis LA catégorie et sous-catégorie EXACTES de la liste ci-dessus (utilise le nom anglais)
 4. Identifie le nom de l'entreprise qui fabrique/vend ce produit
 5. Trouve le site web officiel de l'entreprise (pas le lien du produit)
@@ -74,19 +74,20 @@ INSTRUCTIONS:
 7. Cherche la page LinkedIn de l'entreprise (pas un profil personnel)
 8. Identifie le pays de l'entreprise (code ISO: CH, FR, DE, IT, US, etc.)
 9. Estime le prix public conseillé (MSRP) en EUR et CHF si possible
-10. **NOUVEAU: Cherche des contacts décisionnaires européens** dans le contenu:
-    - Recherche des noms de personnes avec leur fonction (Sales Manager, Business Dev, Export Manager, CEO, etc.)
-    - Privilégie les contacts basés en Europe (CH, FR, DE, IT, NL, UK, ES, etc.)
-    - Si trouvés: extraire nom, titre/fonction, email, LinkedIn profile URL, localisation
-    - Focus sur: directeurs commerciaux, business development, export, ventes
-    - Maximum 3 contacts les plus pertinents
+10. **PRIORITAIRE: Cherche des contacts responsables des marchés Suisse et Européen** dans le contenu:
+    - Focus ABSOLU sur: "Switzerland Manager", "Swiss Market", "Europe Manager", "Export Manager", "International Sales", "DACH Region"
+    - Privilégie les titres contenant: Swiss, Switzerland, Europe, EU, Export, International, DACH (Germany-Austria-Switzerland)
+    - Recherche des noms de personnes avec leur fonction
+    - Localisation: priorité CH > FR > DE > IT > NL > UK > ES > autres pays européens
+    - Si trouvés: extraire nom, titre/fonction, email, LinkedIn profile URL, localisation, téléphone
+    - Maximum 3 contacts, classés par pertinence pour le marché Suisse/Européen
 11. Fournis un score de confiance (0.00 à 1.00) basé sur la qualité des données
 
 Retourne ce JSON (rien d'autre):
 {
   "product": {
     "name": "nom du produit",
-    "description": "description concise en anglais",
+    "description": "description concise EN FRANÇAIS (traduite si nécessaire)",
     "category": "catégorie exacte de la liste (nom anglais)",
     "subcategory": "sous-catégorie exacte (nom anglais)"
   },
@@ -105,13 +106,13 @@ Retourne ce JSON (rien d'autre):
   "contacts": [
     {
       "name": "John Doe",
-      "title": "Sales Manager Europe",
+      "title": "Sales Manager Switzerland & DACH Region",
       "email": "j.doe@company.com ou null",
       "linkedin_url": "https://linkedin.com/in/johndoe ou null",
-      "location": "Paris, France ou null",
-      "phone": "+33 6 XX XX XX XX ou null",
+      "location": "Zurich, Switzerland ou null",
+      "phone": "+41 XX XXX XX XX ou null",
       "source": "claude_extraction",
-      "confidence": 0.85
+      "confidence": 0.95
     }
   ],
   "confidence": 0.95

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { QuickAnalyze } from "@/components/QuickAnalyze";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -22,6 +23,9 @@ export default async function DashboardPage() {
           Bienvenue sur Prospection-ODL - Système de veille produits avec IA
         </p>
       </div>
+
+      {/* Quick Analyze */}
+      <QuickAnalyze />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
