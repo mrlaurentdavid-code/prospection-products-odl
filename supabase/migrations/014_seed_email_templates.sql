@@ -12,8 +12,7 @@ INSERT INTO prospection.email_templates (
   type,
   language,
   subject,
-  body,
-  is_active
+  body_html
 ) VALUES (
   'First Contact - English',
   'first_contact',
@@ -40,8 +39,7 @@ Best regards,
 {{sender_name}}
 {{sender_title}}
 O!deal Marketplace
-https://odeal.ch',
-  true
+https://odeal.ch'
 );
 
 -- Template 2: Follow-up 1 (EN)
@@ -50,8 +48,7 @@ INSERT INTO prospection.email_templates (
   type,
   language,
   subject,
-  body,
-  is_active
+  body_html
 ) VALUES (
   'Follow-up 1 - English',
   'followup_1',
@@ -74,8 +71,7 @@ Thanks for your time!
 
 Best,
 {{sender_name}}
-O!deal Marketplace',
-  true
+O!deal Marketplace'
 );
 
 -- Template 3: Blank Template
@@ -84,15 +80,13 @@ INSERT INTO prospection.email_templates (
   type,
   language,
   subject,
-  body,
-  is_active
+  body_html
 ) VALUES (
   'Blank Template',
   'custom',
   'en',
   '',
-  '',
-  true
+  ''
 );
 
 -- Commentaire

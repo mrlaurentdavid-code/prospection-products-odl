@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Categories fetched:', categories?.length, 'categories');
+    console.log('📋 Available categories:', categories?.map(c => c.name_en).join(', '));
+    console.log('📋 Available subcategories:', subcategories?.map(s => s.name_en).join(', '));
 
     // Étape 3: Analyse avec Claude API
     console.log('🤖 Step 3: Analyzing with Claude API...');
@@ -49,6 +51,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ Analysis successful:', {
       productName: analysis.product.name,
       category: analysis.product.category,
+      subcategory: analysis.product.subcategory,
       confidence: analysis.confidence,
     });
 

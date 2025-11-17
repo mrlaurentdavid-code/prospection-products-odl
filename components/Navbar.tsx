@@ -51,9 +51,11 @@ export function Navbar() {
 
           {/* User Menu */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-gray-600">
-              Laurent D.
-            </Button>
+            <Link href="/dashboard/settings">
+              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+                ⚙️ Paramètres
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

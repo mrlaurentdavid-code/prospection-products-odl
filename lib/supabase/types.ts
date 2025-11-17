@@ -51,3 +51,15 @@ export interface Subcategory {
   name_it: string;
   created_at: string;
 }
+
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  language: 'en' | 'fr' | 'de' | 'it';
+  type: 'first_contact' | 'followup_1' | 'followup_2' | 'custom';
+  subject: string;
+  body_html: string;
+  variables: any;
+  created_at: string;
+  updated_at: string;
+}

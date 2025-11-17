@@ -13,6 +13,7 @@ export default async function DashboardPage() {
   // Compter les produits par statut
   const toReviewCount = stats?.find((s: any) => s.status === 'to_review')?.count || 0;
   const contactedCount = stats?.find((s: any) => s.status === 'contacted')?.count || 0;
+  const archivedCount = stats?.find((s: any) => s.status === 'archived')?.count || 0;
 
   return (
     <div className="space-y-8">
@@ -63,20 +64,22 @@ export default async function DashboardPage() {
           </Card>
         </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Taux de réponse
-            </CardTitle>
-            <Badge variant="outline">--</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">--%</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Moyenne 7 derniers jours
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/archived">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Produits archivés
+              </CardTitle>
+              <Badge variant="outline">{archivedCount}</Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{archivedCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Historique complet
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   );

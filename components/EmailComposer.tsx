@@ -44,29 +44,36 @@ const DEFAULT_TEMPLATES: EmailTemplate[] = [
     id: 'first_contact',
     name: '1er Contact',
     type: 'first_contact',
-    subject: 'Partnership Opportunity with {{company_name}} for O!deal Marketplace',
-    body: `Hi,
+    subject: 'Partnership Opportunity – {{company_name}} & O!deal',
+    body: `Hi {{contact_name}},
 
-I hope this email finds you well.
+I hope this message finds you well.
 
-My name is {{sender_name}}, and I'm the {{sender_title}} at O!deal, a Swiss marketplace connecting innovative brands with customers across Europe.
+My name is Laurent David. As CEO and co-founder of O!deal, I personally handle product partnerships because finding the right brands is critical to what we're building—a Swiss e-commerce platform dedicated to connecting innovative brands with discerning customers.
 
-I recently came across your product "{{product_name}}" and was really impressed by what you've built. It perfectly aligns with what our customers in the {{product_category}} category are looking for.
+I recently discovered your {{product_name}}, and I was genuinely impressed. It's exactly the kind of breakthrough product our tech-savvy community is actively seeking.
 
-We'd love to explore a potential partnership to feature your products on our platform. O!deal gives brands like yours access to:
-• Thousands of active customers in Switzerland and Europe
-• A simple, commission-based sales model (no upfront costs)
-• Marketing support and dedicated account management
+Why O!deal is different:
+We've built something unique for brands like yours:
 
-Would you be open to a quick 15-minute call to discuss this opportunity?
+• Swiss market access – Thousands of engaged customers in Switzerland
+• True autonomy – Unlike traditional platforms, our proprietary offer management module lets you create, adjust, and launch promotions in just a few clicks. No waiting, no intermediaries—you're in control
+• Risk-free partnership – Performance-based model with zero upfront investment
+• Brand-first approach – Curated platform where your products get the attention they deserve
 
-Looking forward to hearing from you.
+Logistics: We work with brands that have stock in Europe for fast, reliable delivery.
+
+I'd love to explore how we could showcase {{company_name}} on our platform.
+
+Would you have 15 minutes this week for a quick intro call?
+
+Looking forward to connecting.
 
 Best regards,
-{{sender_name}}
-{{sender_title}}
-O!deal Marketplace
-https://odeal.ch`,
+Laurent David
+CEO & Co-Founder
+O!deal | Swiss E-Commerce Platform
+🌐 odeal.ch`,
   },
   {
     id: 'followup_1',
@@ -114,14 +121,37 @@ export function EmailComposer({
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ first_name: string; last_name: string; title: string } | null>(null);
+
+  // Charger le profil utilisateur au montage
+  useEffect(() => {
+    async function loadUserProfile() {
+      try {
+        const response = await fetch('/api/settings/profile');
+        if (response.ok) {
+          const data = await response.json();
+          setUserProfile(data.profile);
+        }
+      } catch (error) {
+        console.error('Failed to load user profile:', error);
+        // Fallback sur des valeurs par défaut
+        setUserProfile({ first_name: 'Prénom', last_name: 'Nom', title: 'Product Sourcing Manager' });
+      }
+    }
+    loadUserProfile();
+  }, []);
+
+  // Extraire le prénom du contact (prendre le premier mot du nom)
+  const contactFirstName = contact.name?.split(' ')[0] || 'there';
 
   // Variables dynamiques
   const variables = {
+    '{{contact_name}}': contactFirstName,
     '{{company_name}}': companyName || 'your company',
     '{{product_name}}': productName || 'your product',
     '{{product_category}}': productCategory || 'this category',
-    '{{sender_name}}': 'Laurent David', // À adapter selon l'utilisateur connecté
-    '{{sender_title}}': 'Product Sourcing Manager',
+    '{{sender_name}}': userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : 'User',
+    '{{sender_title}}': userProfile?.title || 'Product Sourcing Manager',
   };
 
   // Remplace les variables dans le texte
@@ -136,11 +166,11 @@ export function EmailComposer({
   // Met à jour subject et body quand le template change
   useEffect(() => {
     const template = DEFAULT_TEMPLATES.find((t) => t.id === selectedTemplate);
-    if (template) {
+    if (template && userProfile) {
       setSubject(replaceVariables(template.subject));
       setBody(replaceVariables(template.body));
     }
-  }, [selectedTemplate, companyName, productName, productCategory]);
+  }, [selectedTemplate, companyName, productName, productCategory, contactFirstName, userProfile]);
 
   const handleSend = async () => {
     if (!contact.email) {

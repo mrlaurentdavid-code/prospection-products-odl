@@ -197,6 +197,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             productCategory={product.category}
             companyName={product.company_name || ''}
             productId={product.id}
+            companyEmail={product.company_email}
+            companyWebsite={product.company_website}
           />
         </div>
 

@@ -13,6 +13,8 @@ interface ContactsListProps {
   productCategory: string | null;
   companyName: string;
   productId: string; // NOUVEAU: ID du produit
+  companyEmail?: string | null; // Email générique de l'entreprise
+  companyWebsite?: string | null; // Site web de l'entreprise
 }
 
 /**
@@ -64,7 +66,7 @@ function getSourceBadgeVariant(source: Contact['source']): 'default' | 'secondar
 /**
  * Composant pour afficher une liste de contacts
  */
-export function ContactsList({ contacts, productName, productCategory, companyName, productId }: ContactsListProps) {
+export function ContactsList({ contacts, productName, productCategory, companyName, productId, companyEmail, companyWebsite }: ContactsListProps) {
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
@@ -73,7 +75,97 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
     setEmailComposerOpen(true);
   };
 
+  // Si aucun contact personnel mais email générique disponible, créer un contact générique
   if (!contacts || contacts.length === 0) {
+    if (companyEmail) {
+      // Créer un contact générique avec l'email de l'entreprise
+      const genericContact: Contact = {
+        name: companyName,
+        title: 'Contact général',
+        email: companyEmail,
+        linkedin_url: null,
+        location: null,
+        phone: null,
+        source: 'claude_extraction',
+        confidence: 0.5, // Confidence plus basse pour email générique
+      };
+
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              👥 Contact entreprise
+              <Badge variant="outline" className="text-xs">Email générique</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+              {/* Header: Nom entreprise */}
+              <div className="mb-3">
+                <h4 className="font-semibold text-gray-900">{companyName}</h4>
+                <p className="text-sm text-gray-600">Contact général</p>
+              </div>
+
+              {/* Infos contact */}
+              <div className="space-y-2 mb-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-500">📧</span>
+                  <a
+                    href={`mailto:${companyEmail}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {companyEmail}
+                  </a>
+                </div>
+
+                {companyWebsite && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gray-500">🌐</span>
+                    <a
+                      href={companyWebsite}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      Site web
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer: Note + Action */}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-500">
+                  ℹ️ Email générique (info@, contact@, sales@)
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleContactClick(genericContact)}
+                >
+                  Contacter
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+
+          {/* Modal de composition d'email */}
+          {selectedContact && (
+            <EmailComposer
+              open={emailComposerOpen}
+              onClose={() => setEmailComposerOpen(false)}
+              contact={selectedContact}
+              productName={productName}
+              productCategory={productCategory}
+              companyName={companyName}
+              productId={productId}
+            />
+          )}
+        </Card>
+      );
+    }
+
+    // Aucun contact ni email générique
     return (
       <Card>
         <CardHeader>

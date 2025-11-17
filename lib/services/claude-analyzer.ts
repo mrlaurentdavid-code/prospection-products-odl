@@ -52,7 +52,11 @@ export async function analyzeProduct(
   subcategories: Subcategory[]
 ): Promise<ClaudeAnalysis> {
   try {
+    console.log('📊 Claude received categories:', categories?.length);
+    console.log('📊 Claude received subcategories:', subcategories?.length);
+
     const categoriesList = generateCategoriesList(categories, subcategories);
+    console.log('📋 Generated categories list preview:', categoriesList.substring(0, 500));
 
     const prompt = `Tu es un expert en analyse de produits pour une marketplace suisse. Analyse ce contenu et retourne UNIQUEMENT un JSON valide (pas de texte avant ou après).
 
@@ -67,7 +71,14 @@ ${categoriesList}
 INSTRUCTIONS:
 1. Extrait le nom exact du produit (en anglais si possible)
 2. **Rédige une description concise EN FRANÇAIS** (max 500 caractères) - traduis si nécessaire
-3. Choisis LA catégorie et sous-catégorie EXACTES de la liste ci-dessus (utilise le nom anglais)
+3. **OBLIGATOIRE**: Choisis LA catégorie et sous-catégorie EXACTES de la liste ci-dessus (utilise le nom anglais)
+   - Tu DOIS ABSOLUMENT choisir une catégorie et sous-catégorie parmi celles listées
+   - Si le produit est difficile à catégoriser, choisis la catégorie la plus proche
+   - Exemples de correspondances:
+     * Lampe décorative → "Home & Garden" > "Lighting"
+     * Vêtement → "Fashion & Accessories" > "Clothing"
+     * Jouet pour enfant → "Kids & Baby" > "Toys & Games"
+   - NE RETOURNE JAMAIS null pour category ou subcategory
 4. Identifie le nom de l'entreprise qui fabrique/vend ce produit
 5. Trouve le site web officiel de l'entreprise (pas le lien du produit)
 6. Cherche un email de contact (idéalement contact@, info@, sales@)
