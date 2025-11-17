@@ -4,6 +4,7 @@ import { ProductsFilters } from "@/components/ProductsFilters";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Product } from "@/lib/supabase/types";
 import { Suspense } from "react";
+import Link from "next/link";
 
 interface ProductsPageProps {
   searchParams: Promise<{
@@ -45,11 +46,19 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Produits</h1>
-        <p className="text-gray-600 mt-2">
-          {products?.length || 0} produit{(products?.length || 0) > 1 ? 's' : ''} analysé{(products?.length || 0) > 1 ? 's' : ''} par l'IA
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Produits</h1>
+          <p className="text-gray-600 mt-2">
+            {products?.length || 0} produit{(products?.length || 0) > 1 ? 's' : ''} analysé{(products?.length || 0) > 1 ? 's' : ''} par l'IA
+          </p>
+        </div>
+        <Link
+          href="/dashboard/archived"
+          className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-2"
+        >
+          🗄️ Voir les archives
+        </Link>
       </div>
 
       {/* Filtres */}
