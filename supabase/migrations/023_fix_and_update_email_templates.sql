@@ -31,7 +31,7 @@ INSERT INTO prospection.email_templates (
 
 I hope this message finds you well.
 
-My name is Laurent David. As CEO and co-founder of O!deal, I personally handle product partnerships because finding the right brands is critical to what we''re building—a Swiss e-commerce platform dedicated to connecting innovative brands with discerning customers.
+My name is {{sender_name}}. As {{sender_title}} and co-founder of O!deal, I personally handle product partnerships because finding the right brands is critical to what we''re building—a Swiss e-commerce platform dedicated to connecting innovative brands with discerning customers.
 
 I recently discovered your {{product_name}}, and I was genuinely impressed. It''s exactly the kind of breakthrough product our tech-savvy community is actively seeking.
 
@@ -52,8 +52,8 @@ Would you have 15 minutes this week for a quick intro call?
 Looking forward to connecting.
 
 Best regards,
-Laurent David
-CEO & Co-Founder
+{{sender_name}}
+{{sender_title}} & Co-Founder
 O!deal | Swiss E-Commerce Platform
 🌐 odeal.ch'
 );

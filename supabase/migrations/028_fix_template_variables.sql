@@ -1,7 +1,7 @@
 -- ============================================
--- MIGRATION 021: Update first contact email template
+-- MIGRATION 028: Fix template variables to use {{sender_name}} and {{sender_title}}
 -- ============================================
--- Description: Met à jour le template de premier contact avec le nouveau format Laurent
+-- Description: Remplace "Laurent David" et "CEO" en dur par les variables dynamiques
 -- ============================================
 
 UPDATE prospection.email_templates
@@ -37,3 +37,6 @@ Best regards,
 O!deal | Swiss E-Commerce Platform
 🌐 odeal.ch'
 WHERE type = 'first_contact' AND language = 'en';
+
+-- Commentaire
+COMMENT ON COLUMN prospection.email_templates.body_html IS 'Template HTML. Variables: {{sender_name}}, {{sender_title}}, {{contact_name}}, {{company_name}}, {{product_name}}, {{product_category}}';

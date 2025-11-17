@@ -1,12 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
+import { useState } from "react";
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        router.push('/auth/login');
+        router.refresh();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard" },
@@ -56,6 +77,15 @@ export function Navbar() {
                 ⚙️ Paramètres
               </Button>
             </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              {isLoggingOut ? '...' : '🚪 Déconnexion'}
+            </Button>
           </div>
         </div>
       </div>
