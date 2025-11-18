@@ -1,37 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
-import { useState } from "react";
 
 export function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        router.push('/auth/login');
-        router.refresh();
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/dashboard/products", label: "Produits" },
+    { href: "/dashboard/brands", label: "Marques" },
   ];
 
   return (
@@ -71,22 +51,11 @@ export function Navbar() {
           </div>
 
           {/* User Menu */}
-          <div className="flex items-center gap-2">
-            <Link href="/dashboard/settings">
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
-                ⚙️ Paramètres
-              </Button>
-            </Link>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              {isLoggingOut ? '...' : '🚪 Déconnexion'}
+          <Link href="/dashboard/settings">
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+              ⚙️ Paramètres
             </Button>
-          </div>
+          </Link>
         </div>
       </div>
     </nav>

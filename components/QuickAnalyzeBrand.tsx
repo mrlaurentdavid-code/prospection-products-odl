@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-export function QuickAnalyze() {
+export function QuickAnalyzeBrand() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export function QuickAnalyze() {
     try {
       new URL(url);
     } catch {
-      setError('URL invalide. Exemple: https://example.com/product');
+      setError('URL invalide. Exemple: https://example.com');
       return;
     }
 
@@ -31,14 +31,17 @@ export function QuickAnalyze() {
     setError(null);
 
     try {
-      console.log('🚀 Starting analysis for:', url);
+      console.log('🚀 Starting brand analysis for:', url);
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({
+          url,
+          type: 'brand' // This is the key difference
+        }),
       });
 
       const data = await response.json();
@@ -47,19 +50,19 @@ export function QuickAnalyze() {
         throw new Error(data.error || 'Erreur lors de l\'analyse');
       }
 
-      console.log('✅ Analysis completed:', data);
+      console.log('✅ Brand analysis completed:', data);
 
-      // Rediriger vers le produit créé
-      if (data.product?.id) {
-        router.push(`/dashboard/products/${data.product.id}`);
+      // Rediriger vers la marque créée
+      if (data.brand?.id) {
+        router.push(`/dashboard/brands/${data.brand.id}`);
       } else {
-        router.push('/dashboard/products');
+        router.push('/dashboard/brands');
       }
 
       // Reset le formulaire
       setUrl('');
     } catch (error) {
-      console.error('❌ Error analyzing URL:', error);
+      console.error('❌ Error analyzing brand:', error);
       setError(error instanceof Error ? error.message : 'Erreur inconnue');
     } finally {
       setLoading(false);
@@ -75,16 +78,16 @@ export function QuickAnalyze() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>🔍 Analyse rapide</CardTitle>
+        <CardTitle>🏢 Analyse de marque</CardTitle>
         <CardDescription>
-          Collez une URL de produit pour lancer une analyse automatique
+          Collez l'URL de la homepage ou page "About" d'une marque pour analyser son univers
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="flex gap-3">
           <Input
             type="url"
-            placeholder="https://example.com/products/mon-produit"
+            placeholder="https://example.com ou https://example.com/about"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -112,12 +115,12 @@ export function QuickAnalyze() {
         )}
         <div className="space-y-2 mt-3">
           <p className="text-xs text-gray-500">
-            Supporte: Instagram, Facebook, TikTok, sites e-commerce
+            Focus sur: logo, best sellers, univers de la marque, catégories
           </p>
           <p className="text-xs text-blue-600">
-            💡 Vous cherchez à analyser une <strong>marque entière</strong> plutôt qu'un produit spécifique ?{' '}
-            <a href="/dashboard/brands" className="underline hover:text-blue-800">
-              Cliquez ici pour analyser une marque
+            💡 Vous cherchez à analyser un <strong>produit spécifique</strong> plutôt qu'une marque entière ?{' '}
+            <a href="/dashboard/products" className="underline hover:text-blue-800">
+              Cliquez ici pour analyser un produit
             </a>
           </p>
         </div>

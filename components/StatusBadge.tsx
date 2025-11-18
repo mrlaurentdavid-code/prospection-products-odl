@@ -114,12 +114,11 @@ export function StatusBadge({ productId, currentStatus }: StatusBadgeProps) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild disabled={loading}>
         <Badge
           className={`${currentConfig.className} cursor-pointer transition-colors ${
-            loading ? 'opacity-50' : ''
+            loading ? 'opacity-50 pointer-events-none' : ''
           } flex items-center gap-1.5`}
-          disabled={loading}
         >
           <span>{currentConfig.icon} {currentConfig.label}</span>
           <ChevronDown className="h-3 w-3" />

@@ -80,19 +80,23 @@ INSTRUCTIONS:
      * Jouet pour enfant → "Kids & Baby" > "Toys & Games"
    - NE RETOURNE JAMAIS null pour category ou subcategory
 4. Identifie le nom de l'entreprise qui fabrique/vend ce produit
-5. Trouve le site web officiel de l'entreprise (pas le lien du produit)
-6. Cherche un email de contact (idéalement contact@, info@, sales@)
-7. Cherche la page LinkedIn de l'entreprise (pas un profil personnel)
-8. Identifie le pays de l'entreprise (code ISO: CH, FR, DE, IT, US, etc.)
-9. Estime le prix public conseillé (MSRP) en EUR et CHF si possible
-10. **PRIORITAIRE: Cherche des contacts responsables des marchés Suisse et Européen** dans le contenu:
+5. **IMPORTANT: Si c'est une marque/filiale, identifie aussi la société mère** (ex: Womanizer → WOW Tech Group)
+6. Trouve le site web officiel de l'entreprise (pas le lien du produit)
+7. Cherche un email de contact (idéalement contact@, info@, sales@)
+8. **PRIORITAIRE: Cherche la page LinkedIn de l'entreprise** (pas un profil personnel):
+   - Cherche d'abord le LinkedIn de la marque
+   - Si introuvable, cherche le LinkedIn de la société mère
+   - Regarde dans le footer, section "About Us", "Contact", liens sociaux
+9. Identifie le pays de l'entreprise (code ISO: CH, FR, DE, IT, US, etc.)
+10. Estime le prix public conseillé (MSRP) en EUR et CHF si possible
+11. **PRIORITAIRE: Cherche des contacts responsables des marchés Suisse et Européen** dans le contenu:
     - Focus ABSOLU sur: "Switzerland Manager", "Swiss Market", "Europe Manager", "Export Manager", "International Sales", "DACH Region"
     - Privilégie les titres contenant: Swiss, Switzerland, Europe, EU, Export, International, DACH (Germany-Austria-Switzerland)
     - Recherche des noms de personnes avec leur fonction
     - Localisation: priorité CH > FR > DE > IT > NL > UK > ES > autres pays européens
     - Si trouvés: extraire nom, titre/fonction, email, LinkedIn profile URL, localisation, téléphone
     - Maximum 3 contacts, classés par pertinence pour le marché Suisse/Européen
-11. Fournis un score de confiance (0.00 à 1.00) basé sur la qualité des données
+12. Fournis un score de confiance (0.00 à 1.00) basé sur la qualité des données
 
 Retourne ce JSON (rien d'autre):
 {
@@ -103,10 +107,11 @@ Retourne ce JSON (rien d'autre):
     "subcategory": "sous-catégorie exacte (nom anglais)"
   },
   "company": {
-    "name": "nom de l'entreprise",
+    "name": "nom de l'entreprise / marque",
+    "parent_company": "nom de la société mère si applicable (ex: WOW Tech Group pour Womanizer) ou null",
     "website": "url du site officiel ou null",
     "email": "email de contact ou null",
-    "linkedin": "url linkedin entreprise ou null",
+    "linkedin": "url linkedin entreprise (marque OU société mère) ou null",
     "country": "code ISO pays ou null"
   },
   "pricing": {
@@ -158,6 +163,13 @@ IMPORTANT: Retourne UNIQUEMENT le JSON, pas de texte explicatif avant ou après.
 
     const jsonString = jsonMatch[0];
     const parsed = JSON.parse(jsonString);
+
+    // Nettoyer les contacts invalides (name null ou vide)
+    if (parsed.contacts && Array.isArray(parsed.contacts)) {
+      parsed.contacts = parsed.contacts.filter(
+        (contact: any) => contact.name && contact.name.trim().length > 0
+      );
+    }
 
     // Valider avec Zod
     const validated = claudeAnalysisSchema.parse(parsed);

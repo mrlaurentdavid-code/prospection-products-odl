@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-export function QuickAnalyze() {
+export function QuickAnalyzeUnified() {
   const [url, setUrl] = useState('');
+  const [type, setType] = useState<'product' | 'brand'>('product');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -23,7 +24,7 @@ export function QuickAnalyze() {
     try {
       new URL(url);
     } catch {
-      setError('URL invalide. Exemple: https://example.com/product');
+      setError('URL invalide. Exemple: https://example.com');
       return;
     }
 
@@ -31,14 +32,14 @@ export function QuickAnalyze() {
     setError(null);
 
     try {
-      console.log('🚀 Starting analysis for:', url);
+      console.log(`🚀 Starting ${type} analysis for:`, url);
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, type }),
       });
 
       const data = await response.json();
@@ -49,11 +50,13 @@ export function QuickAnalyze() {
 
       console.log('✅ Analysis completed:', data);
 
-      // Rediriger vers le produit créé
-      if (data.product?.id) {
+      // Rediriger vers la page appropriée
+      if (type === 'product' && data.product?.id) {
         router.push(`/dashboard/products/${data.product.id}`);
+      } else if (type === 'brand' && data.brand?.id) {
+        router.push(`/dashboard/brands/${data.brand.id}`);
       } else {
-        router.push('/dashboard/products');
+        router.push(type === 'product' ? '/dashboard/products' : '/dashboard/brands');
       }
 
       // Reset le formulaire
@@ -77,14 +80,41 @@ export function QuickAnalyze() {
       <CardHeader>
         <CardTitle>🔍 Analyse rapide</CardTitle>
         <CardDescription>
-          Collez une URL de produit pour lancer une analyse automatique
+          Choisissez le type d'analyse et collez une URL
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Toggle Product / Brand */}
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={type === 'product' ? 'default' : 'outline'}
+            onClick={() => setType('product')}
+            className="flex-1"
+            disabled={loading}
+          >
+            📦 Produit
+          </Button>
+          <Button
+            type="button"
+            variant={type === 'brand' ? 'default' : 'outline'}
+            onClick={() => setType('brand')}
+            className="flex-1"
+            disabled={loading}
+          >
+            🏢 Marque
+          </Button>
+        </div>
+
+        {/* URL Input */}
         <div className="flex gap-3">
           <Input
             type="url"
-            placeholder="https://example.com/products/mon-produit"
+            placeholder={
+              type === 'product'
+                ? 'https://example.com/products/mon-produit'
+                : 'https://example.com ou https://example.com/about'
+            }
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -105,22 +135,30 @@ export function QuickAnalyze() {
             )}
           </Button>
         </div>
+
+        {/* Error message */}
         {error && (
-          <p className="text-sm text-red-600 mt-2">
+          <p className="text-sm text-red-600">
             ⚠️ {error}
           </p>
         )}
-        <div className="space-y-2 mt-3">
-          <p className="text-xs text-gray-500">
-            Supporte: Instagram, Facebook, TikTok, sites e-commerce
-          </p>
-          <p className="text-xs text-blue-600">
-            💡 Vous cherchez à analyser une <strong>marque entière</strong> plutôt qu'un produit spécifique ?{' '}
-            <a href="/dashboard/brands" className="underline hover:text-blue-800">
-              Cliquez ici pour analyser une marque
-            </a>
-          </p>
-        </div>
+
+        {/* Description contextuelle */}
+        <p className="text-xs text-gray-500">
+          {type === 'product' ? (
+            <>
+              <strong>Mode Produit:</strong> Analyse un produit spécifique (prix, caractéristiques, catégorie)
+            </>
+          ) : (
+            <>
+              <strong>Mode Marque:</strong> Analyse une marque entière (logo, best sellers, univers)
+            </>
+          )}
+        </p>
+
+        <p className="text-xs text-gray-500">
+          Supporte: Instagram, Facebook, TikTok, sites e-commerce
+        </p>
       </CardContent>
     </Card>
   );

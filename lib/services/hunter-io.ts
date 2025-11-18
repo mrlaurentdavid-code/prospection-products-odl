@@ -87,13 +87,16 @@ function getParentDomain(domain: string): string | null {
  * - Retourne emails + LinkedIn profiles
  * - Confidence score pour chaque email
  * - Fallback automatique sur domaine parent si domaine local sans résultat
+ * - Support société mère (ex: Womanizer → WOW Tech Group)
  *
  * @param companyWebsite - URL du site web de l'entreprise
+ * @param parentCompany - Nom de la société mère (optionnel)
  * @param limit - Nombre max de contacts à retourner (défaut: 5)
  * @returns Array de contacts enrichis
  */
 export async function findCompanyContacts(
   companyWebsite: string,
+  parentCompany?: string | null,
   limit: number = 5
 ): Promise<Contact[]> {
   // Vérifier que la clé API est configurée
@@ -139,6 +142,35 @@ export async function findCompanyContacts(
         }
       } else {
         console.log(`ℹ️ Hunter.io: No parent domain to try for ${domain}`);
+      }
+    }
+
+    // Si toujours aucun résultat et qu'une société mère est fournie, essayer son domaine
+    if (data.data.emails.length === 0 && parentCompany) {
+      // Essayer de construire le domaine de la société mère
+      // Ex: "WOW Tech Group" → "wowtechgroup.com"
+      const parentCompanyDomain = parentCompany
+        .toLowerCase()
+        .replace(/\s+/g, '') // Retirer les espaces
+        .replace(/[^a-z0-9]/g, '') // Retirer les caractères spéciaux
+        .concat('.com');
+
+      if (parentCompanyDomain !== domain) {
+        console.log(`ℹ️ Hunter.io: No results on brand domain, trying parent company domain ${parentCompanyDomain}...`);
+
+        url = `https://api.hunter.io/v2/domain-search?domain=${parentCompanyDomain}&api_key=${apiKey}&limit=${limit}`;
+        response = await fetch(url);
+
+        if (response.ok) {
+          const parentCompanyData: HunterDomainSearchResponse = await response.json();
+
+          if (parentCompanyData.data.emails.length > 0) {
+            console.log(`✅ Hunter.io: Found ${parentCompanyData.data.emails.length} contacts on parent company domain ${parentCompanyDomain}`);
+            data = parentCompanyData;
+          } else {
+            console.log(`ℹ️ Hunter.io: No contacts found on parent company domain either`);
+          }
+        }
       }
     }
 

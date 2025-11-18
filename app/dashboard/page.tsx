@@ -2,7 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { QuickAnalyze } from "@/components/QuickAnalyze";
+import { QuickAnalyzeUnified } from "@/components/QuickAnalyzeUnified";
+import { LatestGemsHeader } from "@/components/LatestGemsHeader";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -10,13 +11,30 @@ export default async function DashboardPage() {
   // Récupérer les stats des produits
   const { data: stats } = await supabase.rpc('get_prospection_products_stats');
 
+  // Récupérer les 5 derniers produits pour le bandeau
+  const { data: latestProducts } = await supabase.rpc('get_prospection_products_filtered', {
+    p_status: null,
+    p_category: null,
+    p_subcategory: null,
+    p_limit: 5,
+    p_offset: 0,
+  });
+
   // Compter les produits par statut
   const toReviewCount = stats?.find((s: any) => s.status === 'to_review')?.count || 0;
   const contactedCount = stats?.find((s: any) => s.status === 'contacted')?.count || 0;
   const archivedCount = stats?.find((s: any) => s.status === 'archived')?.count || 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-0">
+      {/* Latest Gems Banner */}
+      {latestProducts && latestProducts.length > 0 && (
+        <div className="-mx-4 md:-mx-8 mb-8">
+          <LatestGemsHeader products={latestProducts} />
+        </div>
+      )}
+
+      <div className="space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
@@ -26,7 +44,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick Analyze */}
-      <QuickAnalyze />
+      <QuickAnalyzeUnified />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -80,6 +98,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </Link>
+      </div>
       </div>
     </div>
   );

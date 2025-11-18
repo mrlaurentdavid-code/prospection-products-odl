@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { SettingsForm } from "@/components/SettingsForm";
+import { LogoutButton } from "@/components/LogoutButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function SettingsPage() {
@@ -126,6 +127,24 @@ export default async function SettingsPage() {
                 <code className="bg-gray-100 px-2 py-0.5 rounded text-xs">{'{{product_name}}'}</code> → Nom du produit
               </li>
             </ul>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section Déconnexion */}
+      <Card className="border-red-200">
+        <CardHeader>
+          <CardTitle className="text-red-900">Zone dangereuse</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-gray-900">Déconnexion</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Vous serez redirigé vers la page de connexion
+              </p>
+            </div>
+            <LogoutButton />
           </div>
         </CardContent>
       </Card>

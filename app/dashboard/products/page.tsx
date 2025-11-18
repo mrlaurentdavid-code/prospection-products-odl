@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
-import { ProductCard } from "@/components/ProductCard";
+import { ModernProductCard } from "@/components/ModernProductCard";
 import { ProductsFilters } from "@/components/ProductsFilters";
+import { QuickAnalyze } from "@/components/QuickAnalyze";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Product } from "@/lib/supabase/types";
 import { Suspense } from "react";
@@ -61,6 +62,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         </Link>
       </div>
 
+      {/* Quick Analyze */}
+      <QuickAnalyze />
+
       {/* Filtres */}
       <Suspense fallback={<div>Chargement des filtres...</div>}>
         <ProductsFilters categories={categories} subcategories={subcategories} />
@@ -85,9 +89,11 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {products.map((product: any) => (
+            <Link key={product.id} href={`/dashboard/products/${product.id}`}>
+              <ModernProductCard product={product} />
+            </Link>
           ))}
         </div>
       )}

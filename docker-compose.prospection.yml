@@ -1,0 +1,35 @@
+version: "3.7"
+
+services:
+  prospection-app:
+    build:
+      context: /opt/prospection-odl
+      dockerfile: Dockerfile
+    image: prospection-odl:latest
+    container_name: prospection-app
+    restart: always
+    env_file:
+      - /opt/prospection-odl/.env.production
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    networks:
+      - root_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prospection.rule=Host(`prosp.odl-tools.ch`)"
+      - "traefik.http.routers.prospection.tls=true"
+      - "traefik.http.routers.prospection.entrypoints=web,websecure"
+      - "traefik.http.routers.prospection.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.prospection.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  root_default:
+    external: true

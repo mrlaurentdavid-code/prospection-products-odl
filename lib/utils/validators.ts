@@ -16,7 +16,7 @@ export type JinaScrapedData = z.infer<typeof jinaScrapedDataSchema>;
 
 // Validator pour un contact
 export const contactSchema = z.object({
-  name: z.string().min(1, 'Le nom du contact est requis'),
+  name: z.string().nullable(), // Nullable car Claude peut retourner null si pas de contact trouvé
   title: z.string().nullable(), // Poste (Sales Manager, Business Dev, etc.)
   email: z.string().email().optional().nullable(),
   linkedin_url: z.string().url().optional().nullable(),
@@ -38,6 +38,7 @@ export const claudeAnalysisSchema = z.object({
   }),
   company: z.object({
     name: z.string().nullable(),
+    parent_company: z.string().optional().nullable(), // Société mère si applicable (ex: WOW Tech Group pour Womanizer)
     website: z.string().url().optional().nullable(),
     email: z.string().email().optional().nullable(),
     linkedin: z.string().url().optional().nullable(),

@@ -60,7 +60,7 @@ export async function DELETE(
 
 /**
  * PATCH /api/products/[id]
- * Met à jour un produit (statut, etc.)
+ * Met à jour un produit (statut, images, etc.)
  */
 export async function PATCH(
   request: NextRequest,
@@ -69,19 +69,9 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, images } = body;
 
-    console.log('📝 PATCH /api/products/[id] - Received:', { id, status });
-
-    // Valider le statut
-    const validStatuses = ['to_review', 'standby', 'contacted', 'archived'];
-    if (status && !validStatuses.includes(status)) {
-      console.error('❌ Invalid status:', status);
-      return NextResponse.json(
-        { success: false, error: 'Invalid status value' },
-        { status: 400 }
-      );
-    }
+    console.log('📝 PATCH /api/products/[id] - Received:', { id, status, images: images?.length });
 
     const supabase = await createClient();
 
@@ -98,30 +88,93 @@ export async function PATCH(
 
     console.log('✅ User authenticated:', user.id);
 
-    // Mettre à jour le produit via RPC
-    const { data, error } = await supabase
-      .rpc('update_product_status', {
-        p_product_id: id,
-        p_status: status,
-      });
+    // Cas 1: Mise à jour du statut via RPC
+    if (status !== undefined) {
+      // Valider le statut
+      const validStatuses = ['to_review', 'standby', 'contacted', 'archived'];
+      if (!validStatuses.includes(status)) {
+        console.error('❌ Invalid status:', status);
+        return NextResponse.json(
+          { success: false, error: 'Invalid status value' },
+          { status: 400 }
+        );
+      }
 
-    if (error) {
-      console.error('❌ Supabase error updating product:', error);
-      return NextResponse.json(
-        { success: false, error: error.message, details: error },
-        { status: 500 }
-      );
+      const { data, error } = await supabase
+        .rpc('update_product_status', {
+          p_product_id: id,
+          p_status: status,
+        });
+
+      if (error) {
+        console.error('❌ Supabase error updating status:', error);
+        return NextResponse.json(
+          { success: false, error: error.message, details: error },
+          { status: 500 }
+        );
+      }
+
+      console.log('✅ Product status updated:', id, '→', status);
+
+      const product = Array.isArray(data) && data.length > 0 ? data[0] : null;
+
+      return NextResponse.json({
+        success: true,
+        product: product,
+      });
     }
 
-    console.log('✅ Product status updated:', id, '→', status);
+    // Cas 2: Mise à jour des images via RPC
+    if (images !== undefined) {
+      // Valider que c'est un tableau non vide
+      if (!Array.isArray(images) || images.length === 0) {
+        console.error('❌ Invalid images array:', images);
+        return NextResponse.json(
+          { success: false, error: 'Images must be a non-empty array' },
+          { status: 400 }
+        );
+      }
 
-    // RPC returns an array, get the first item
-    const product = Array.isArray(data) && data.length > 0 ? data[0] : null;
+      // Valider que toutes les images sont des URLs valides
+      const allValidUrls = images.every((img: any) =>
+        typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))
+      );
 
-    return NextResponse.json({
-      success: true,
-      product: product,
-    });
+      if (!allValidUrls) {
+        console.error('❌ Invalid image URLs:', images);
+        return NextResponse.json(
+          { success: false, error: 'All images must be valid HTTP(S) URLs' },
+          { status: 400 }
+        );
+      }
+
+      const { data, error } = await supabase
+        .rpc('update_product_images', {
+          p_product_id: id,
+          p_images: images,
+        });
+
+      if (error) {
+        console.error('❌ Supabase error updating images:', error);
+        return NextResponse.json(
+          { success: false, error: error.message, details: error },
+          { status: 500 }
+        );
+      }
+
+      console.log('✅ Product images updated:', id, '→', images.length, 'images');
+
+      return NextResponse.json({
+        success: true,
+        product: data,
+      });
+    }
+
+    // Cas 3: Aucun champ reconnu
+    return NextResponse.json(
+      { success: false, error: 'No valid fields to update (status or images required)' },
+      { status: 400 }
+    );
   } catch (error) {
     console.error('❌ Error in PATCH /api/products/[id]:', error);
     return NextResponse.json(

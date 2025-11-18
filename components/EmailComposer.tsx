@@ -32,81 +32,13 @@ interface EmailComposerProps {
 }
 
 interface EmailTemplate {
-  id: string;
+  id: number;
   name: string;
   type: string;
   subject: string;
-  body: string;
+  body_html: string;
+  language: string;
 }
-
-const DEFAULT_TEMPLATES: EmailTemplate[] = [
-  {
-    id: 'first_contact',
-    name: '1er Contact',
-    type: 'first_contact',
-    subject: 'Partnership Opportunity – {{company_name}} & O!deal',
-    body: `Hi {{contact_name}},
-
-I hope this message finds you well.
-
-My name is Laurent David. As CEO and co-founder of O!deal, I personally handle product partnerships because finding the right brands is critical to what we're building—a Swiss e-commerce platform dedicated to connecting innovative brands with discerning customers.
-
-I recently discovered your {{product_name}}, and I was genuinely impressed. It's exactly the kind of breakthrough product our tech-savvy community is actively seeking.
-
-Why O!deal is different:
-We've built something unique for brands like yours:
-
-• Swiss market access – Thousands of engaged customers in Switzerland
-• True autonomy – Unlike traditional platforms, our proprietary offer management module lets you create, adjust, and launch promotions in just a few clicks. No waiting, no intermediaries—you're in control
-• Risk-free partnership – Performance-based model with zero upfront investment
-• Brand-first approach – Curated platform where your products get the attention they deserve
-
-Logistics: We work with brands that have stock in Europe for fast, reliable delivery.
-
-I'd love to explore how we could showcase {{company_name}} on our platform.
-
-Would you have 15 minutes this week for a quick intro call?
-
-Looking forward to connecting.
-
-Best regards,
-Laurent David
-CEO & Co-Founder
-O!deal | Swiss E-Commerce Platform
-🌐 odeal.ch`,
-  },
-  {
-    id: 'followup_1',
-    name: 'Relance 1',
-    type: 'followup_1',
-    subject: 'Following up - {{company_name}} x O!deal Partnership',
-    body: `Hi,
-
-I wanted to follow up on my previous email about featuring {{product_name}} on O!deal.
-
-I understand you're busy, but I genuinely believe this could be a great opportunity for {{company_name}} to expand your reach in the Swiss and European markets.
-
-Quick reminder of what we offer:
-• Zero upfront costs - commission-based model only
-• Access to thousands of active customers
-• Full marketing and logistics support
-
-If you're interested or have any questions, I'd be happy to send over more details or schedule a quick call at your convenience.
-
-Thanks for your time!
-
-Best,
-{{sender_name}}
-O!deal Marketplace`,
-  },
-  {
-    id: 'blank',
-    name: 'Vierge',
-    type: 'custom',
-    subject: '',
-    body: '',
-  },
-];
 
 export function EmailComposer({
   open,
@@ -117,28 +49,48 @@ export function EmailComposer({
   companyName,
   productId,
 }: EmailComposerProps) {
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('first_contact');
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<{ first_name: string; last_name: string; title: string } | null>(null);
 
-  // Charger le profil utilisateur au montage
+  // Charger les templates depuis la BDD et le profil utilisateur au montage
   useEffect(() => {
-    async function loadUserProfile() {
+    async function loadData() {
       try {
-        const response = await fetch('/api/settings/profile');
-        if (response.ok) {
-          const data = await response.json();
-          setUserProfile(data.profile);
+        // Charger les templates
+        const templatesResponse = await fetch('/api/email/templates');
+        if (templatesResponse.ok) {
+          const templatesData = await templatesResponse.json();
+          setTemplates(templatesData.templates || []);
+
+          // Sélectionner le premier template "first_contact" en anglais par défaut
+          const defaultTemplate = templatesData.templates?.find(
+            (t: EmailTemplate) => t.type === 'first_contact' && t.language === 'en'
+          );
+          if (defaultTemplate) {
+            setSelectedTemplateId(defaultTemplate.id);
+          }
+        }
+
+        // Charger le profil utilisateur
+        const profileResponse = await fetch('/api/settings/profile');
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          setUserProfile(profileData.profile);
         }
       } catch (error) {
-        console.error('Failed to load user profile:', error);
+        console.error('Failed to load data:', error);
         // Fallback sur des valeurs par défaut
         setUserProfile({ first_name: 'Prénom', last_name: 'Nom', title: 'Product Sourcing Manager' });
+      } finally {
+        setLoading(false);
       }
     }
-    loadUserProfile();
+    loadData();
   }, []);
 
   // Extraire le prénom du contact (prendre le premier mot du nom)
@@ -165,12 +117,14 @@ export function EmailComposer({
 
   // Met à jour subject et body quand le template change
   useEffect(() => {
-    const template = DEFAULT_TEMPLATES.find((t) => t.id === selectedTemplate);
-    if (template && userProfile) {
+    if (!selectedTemplateId || !userProfile) return;
+
+    const template = templates.find((t) => t.id === selectedTemplateId);
+    if (template) {
       setSubject(replaceVariables(template.subject));
-      setBody(replaceVariables(template.body));
+      setBody(replaceVariables(template.body_html));
     }
-  }, [selectedTemplate, companyName, productName, productCategory, contactFirstName, userProfile]);
+  }, [selectedTemplateId, templates, companyName, productName, productCategory, contactFirstName, userProfile]);
 
   const handleSend = async () => {
     if (!contact.email) {
@@ -269,18 +223,25 @@ export function EmailComposer({
           {/* Sélection du template */}
           <div className="space-y-2">
             <Label htmlFor="template">Template</Label>
-            <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-              <SelectTrigger id="template">
-                <SelectValue placeholder="Sélectionner un template" />
-              </SelectTrigger>
-              <SelectContent>
-                {DEFAULT_TEMPLATES.map((template) => (
-                  <SelectItem key={template.id} value={template.id}>
-                    {template.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {loading ? (
+              <p className="text-sm text-gray-500">Chargement des templates...</p>
+            ) : (
+              <Select
+                value={selectedTemplateId?.toString()}
+                onValueChange={(value) => setSelectedTemplateId(parseInt(value))}
+              >
+                <SelectTrigger id="template">
+                  <SelectValue placeholder="Sélectionner un template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id.toString()}>
+                      {template.name} ({template.language.toUpperCase()})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Sujet */}

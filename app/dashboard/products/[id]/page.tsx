@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { ProductImage } from "@/components/ProductImage";
 import { ContactsList } from "@/components/ContactsList";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ProductHistory } from "@/components/ProductHistory";
+import { ImageGalleryManager } from "@/components/ImageGalleryManager";
 import { Product } from "@/lib/supabase/types";
 import { Contact } from "@/lib/utils/validators";
 import {
@@ -110,47 +112,11 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Colonne principale */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Images */}
-          {product.images && product.images.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Image principale</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Première image en grand */}
-                <div className="w-full max-w-2xl mx-auto">
-                  <ProductImage
-                    src={product.images[0]}
-                    alt={product.name}
-                    showPlaceholder={true}
-                  />
-                </div>
-
-                {/* Autres images dans un accordion */}
-                {product.images.length > 1 && (
-                  <Accordion type="single" collapsible>
-                    <AccordionItem value="more-images">
-                      <AccordionTrigger className="text-sm text-gray-600">
-                        Voir plus d'images ({product.images.length - 1})
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4">
-                          {product.images.slice(1).map((img, idx) => (
-                            <ProductImage
-                              key={idx + 1}
-                              src={img}
-                              alt={`${product.name} ${idx + 2}`}
-                              showPlaceholder={true}
-                            />
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* Images avec gestion */}
+          <ImageGalleryManager
+            productId={id}
+            images={product.images || []}
+          />
 
           {/* Description */}
           {product.description && (
@@ -305,6 +271,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               )}
             </CardContent>
           </Card>
+
+          {/* Historique du produit */}
+          <ProductHistory productId={id} />
 
           {/* Métadonnées */}
           <Card>
