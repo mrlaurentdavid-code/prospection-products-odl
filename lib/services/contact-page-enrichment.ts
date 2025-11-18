@@ -9,8 +9,33 @@ import { Contact } from '@/lib/utils/validators';
 
 /**
  * URLs typiques de pages de contact à essayer
+ * PRIORITÉ: Pages régionales Suisse/Europe en premier
  */
 const CONTACT_PAGE_PATTERNS = [
+  // Pages régionales Suisse/Europe (PRIORITÉ)
+  '/contact-switzerland',
+  '/contact-swiss',
+  '/kontakt-schweiz',
+  '/switzerland',
+  '/schweiz',
+  '/suisse',
+  '/ch',
+  '/de-ch', // Allemand Suisse
+  '/fr-ch', // Français Suisse
+  '/it-ch', // Italien Suisse
+  '/contact-europe',
+  '/europe',
+  '/eu',
+  '/dach', // Germany, Austria, Switzerland
+  '/de-de', // Allemagne
+  '/fr-fr', // France
+  '/locations',
+  '/standorte', // Locations en allemand
+  '/offices',
+  '/distributors',
+  '/vertrieb', // Sales en allemand
+
+  // Pages générales de contact (SECONDAIRE)
   '/contact',
   '/kontakt',
   '/contact-us',
@@ -43,9 +68,16 @@ function extractRootDomain(url: string): string | null {
 function extractContactsFromContent(content: string, websiteUrl: string): Contact[] {
   const contacts: Contact[] = [];
 
-  // Pattern pour email B2B/commercial (plus spécifique, inclut info@)
-  const b2bEmailPattern = /(order|sales|business|b2b|wholesale|partner|export|international|info|contact)@[\w\.-]+\.[a-z]{2,}/gi;
+  // Pattern pour email B2B/commercial (PRIORITÉ: Swiss/EU spécifique)
+  const swissEuEmailPattern = /(switzerland|swiss|schweiz|suisse|europe|eu|dach|export|international)@[\w\.-]+\.[a-z]{2,}/gi;
+  const swissEuEmails = content.match(swissEuEmailPattern) || [];
+
+  // Pattern pour email B2B général (plus spécifique, inclut info@)
+  const b2bEmailPattern = /(order|sales|business|b2b|wholesale|partner|info|contact|vertrieb)@[\w\.-]+\.[a-z]{2,}/gi;
   const b2bEmails = content.match(b2bEmailPattern) || [];
+
+  // Combiner les deux (Swiss/EU en premier)
+  const allEmails = [...swissEuEmails, ...b2bEmails];
 
   // Pattern pour téléphone (plus strict - doit commencer par +)
   const phonePattern = /(\+\d{1,3}[\s.-]?\d{1,4}[\s.-]?\d{2,4}[\s.-]?\d{2,4}[\s.-]?\d{0,4})/g;
@@ -63,28 +95,52 @@ function extractContactsFromContent(content: string, websiteUrl: string): Contac
   const titleMatches = Array.from(content.matchAll(new RegExp(titlePattern)));
 
   // Créer des contacts depuis les emails B2B
-  if (b2bEmails.length > 0) {
+  if (allEmails.length > 0) {
     // Dédupliquer les emails
-    const uniqueEmails = Array.from(new Set(b2bEmails.map(e => e.toLowerCase())));
+    const uniqueEmails = Array.from(new Set(allEmails.map(e => e.toLowerCase())));
 
     uniqueEmails.forEach((email) => {
       // Déterminer le type de contact basé sur l'email
       let title = 'B2B Contact';
-      if (email.includes('order')) title = 'Order & Sales Contact';
-      else if (email.includes('sales')) title = 'Sales Contact';
-      else if (email.includes('export') || email.includes('international')) title = 'Export & International Contact';
-      else if (email.includes('info')) title = 'General Contact';
-      else if (email.includes('business') || email.includes('b2b')) title = 'Business Development Contact';
+      let confidence = 0.75;
+      let location = null;
+
+      // PRIORITÉ: Contacts Swiss/EU (confidence boost)
+      if (email.includes('switzerland') || email.includes('swiss') || email.includes('schweiz') || email.includes('suisse')) {
+        title = 'Switzerland Contact';
+        location = 'Switzerland';
+        confidence = 0.95; // Très haute priorité
+      } else if (email.includes('europe') || email.includes('eu')) {
+        title = 'Europe Contact';
+        location = 'Europe';
+        confidence = 0.90; // Haute priorité
+      } else if (email.includes('dach')) {
+        title = 'DACH Region Contact';
+        location = 'DACH';
+        confidence = 0.90;
+      } else if (email.includes('export') || email.includes('international')) {
+        title = 'Export & International Contact';
+        confidence = 0.85;
+      } else if (email.includes('order')) {
+        title = 'Order & Sales Contact';
+      } else if (email.includes('sales') || email.includes('vertrieb')) {
+        title = 'Sales Contact';
+      } else if (email.includes('info')) {
+        title = 'General Contact';
+        confidence = 0.65; // Moins prioritaire
+      } else if (email.includes('business') || email.includes('b2b')) {
+        title = 'Business Development Contact';
+      }
 
       contacts.push({
         name: null,
         title,
         email,
         linkedin_url: null,
-        location: null,
+        location,
         phone: phones[0] || null, // Prendre le premier téléphone valide trouvé
         source: 'claude_extraction',
-        confidence: 0.75,
+        confidence,
       });
     });
   }

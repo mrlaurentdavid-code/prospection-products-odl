@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { BrandStatusBadge } from "@/components/BrandStatusBadge";
 
 interface BrandDetailPageProps {
   params: Promise<{
@@ -54,17 +55,7 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
             <p className="text-xl text-gray-600 mt-2">{brand.tagline}</p>
           )}
           <div className="flex items-center gap-3 mt-4">
-            <span className={`text-sm px-3 py-1 rounded ${
-              brand.status === 'to_review' ? 'bg-amber-100 text-amber-800' :
-              brand.status === 'contacted' ? 'bg-blue-100 text-blue-800' :
-              brand.status === 'standby' ? 'bg-gray-100 text-gray-800' :
-              'bg-red-100 text-red-800'
-            }`}>
-              {brand.status === 'to_review' ? 'À réviser' :
-               brand.status === 'contacted' ? 'Contacté' :
-               brand.status === 'standby' ? 'En attente' :
-               'Archivé'}
-            </span>
+            <BrandStatusBadge brandId={brand.id} currentStatus={brand.status} />
             {brand.ai_confidence_score && (
               <span className="text-sm bg-emerald-100 text-emerald-800 px-3 py-1 rounded">
                 {Math.round(brand.ai_confidence_score * 100)}% confiance IA
@@ -226,25 +217,42 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
           <CardContent>
             <div className="space-y-4">
               {brand.contacts.map((contact: any, idx: number) => (
-                <div key={idx} className="border rounded-lg p-4">
+                <div key={idx} className="border rounded-lg p-4 hover:border-blue-300 transition-colors">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium text-gray-900">{contact.name}</p>
-                      <p className="text-sm text-gray-600">{contact.title}</p>
+                      {contact.name && (
+                        <p className="font-medium text-gray-900">{contact.name}</p>
+                      )}
+                      {contact.title && (
+                        <p className="text-sm text-gray-600">{contact.title}</p>
+                      )}
+                      {!contact.name && !contact.title && (
+                        <p className="font-medium text-gray-600">Contact {idx + 1}</p>
+                      )}
                     </div>
-                    {contact.confidence && (
-                      <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded">
-                        {Math.round(contact.confidence * 100)}%
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {contact.location && (
+                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                          {contact.location}
+                        </span>
+                      )}
+                      {contact.confidence && (
+                        <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded">
+                          {Math.round(contact.confidence * 100)}%
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-3 space-y-1 text-sm">
                     {contact.email && (
-                      <p>
-                        📧 <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">
-                          {contact.email}
-                        </a>
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p>
+                          📧 <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">
+                            {contact.email}
+                          </a>
+                        </p>
+                        {/* TODO: Add Email Composer button here */}
+                      </div>
                     )}
                     {contact.linkedin_url && (
                       <p>
@@ -258,11 +266,13 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
                         </a>
                       </p>
                     )}
-                    {contact.location && (
-                      <p className="text-gray-600">📍 {contact.location}</p>
-                    )}
                     {contact.phone && (
                       <p className="text-gray-600">📞 {contact.phone}</p>
+                    )}
+                    {contact.source && (
+                      <p className="text-xs text-gray-500">
+                        Source: {contact.source === 'hunter_io' ? 'Hunter.io' : contact.source === 'claude_extraction' ? 'Claude AI' : contact.source}
+                      </p>
                     )}
                   </div>
                 </div>
