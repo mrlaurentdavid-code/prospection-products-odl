@@ -231,9 +231,9 @@ export async function findCompanyContacts(
 
         return {
           contact: {
-            name: `${email.first_name} ${email.last_name}`,
+            name: (email.first_name && email.last_name) ? `${email.first_name} ${email.last_name}` : null,
             title: email.position || null,
-            email: email.value,
+            email: email.value || null,
             linkedin_url: email.linkedin || null,
             location: null, // Hunter.io ne retourne pas la localisation dans Domain Search
             phone: email.phone_number || null,
