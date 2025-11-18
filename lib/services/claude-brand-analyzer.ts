@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { JinaScrapedData } from '@/lib/utils/validators';
+import { JinaScrapedData, Contact } from '@/lib/utils/validators';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -34,16 +34,7 @@ export interface ClaudeBrandAnalysis {
     founded_year: number | null;
     has_ecommerce: boolean;
   };
-  contacts: Array<{
-    name: string;
-    title: string;
-    email: string | null;
-    linkedin_url: string | null;
-    location: string | null;
-    phone: string | null;
-    source: string;
-    confidence: number;
-  }>;
+  contacts: Contact[];
   confidence: number;
 }
 
