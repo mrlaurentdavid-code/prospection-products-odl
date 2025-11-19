@@ -63,6 +63,32 @@ function extractRootDomain(url: string): string | null {
 }
 
 /**
+ * Détecte si c'est un sous-domaine de langue/région (fr-fr, de-de, en-us, etc.)
+ * et retourne le domaine principal
+ */
+function getNormalizedDomain(url: string): string | null {
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+
+    // Pattern pour sous-domaines langue/région: fr-fr, de-de, en-us, fr-ch, etc.
+    const langRegionPattern = /^([a-z]{2}-[a-z]{2})\./i;
+    const match = hostname.match(langRegionPattern);
+
+    if (match) {
+      // Retirer le sous-domaine langue/région pour obtenir le domaine principal
+      const mainDomain = hostname.replace(langRegionPattern, '');
+      console.log(`  🌍 Detected language subdomain: ${hostname} → normalized to: ${mainDomain}`);
+      return `${urlObj.protocol}//${mainDomain}`;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Cherche des informations de contact dans un contenu HTML/text
  */
 function extractContactsFromContent(content: string, websiteUrl: string): Contact[] {
@@ -178,79 +204,99 @@ export async function enrichContactsFromWebsite(websiteUrl: string): Promise<Con
     return [];
   }
 
+  // Détecter si on a un sous-domaine de langue (fr-fr, de-de, etc.)
+  const normalizedDomain = getNormalizedDomain(websiteUrl);
+
   console.log(`🔍 Enriching contacts from website: ${rootDomain}`);
+  if (normalizedDomain) {
+    console.log(`  ℹ️ Will also try normalized domain: ${normalizedDomain}`);
+  }
 
   const allContacts: Contact[] = [];
+
+  // Domaines à essayer (original + normalisé si applicable)
+  const domainsToTry = [rootDomain];
+  if (normalizedDomain && normalizedDomain !== rootDomain) {
+    domainsToTry.push(normalizedDomain);
+  }
 
   // Essayer chaque pattern de page de contact (max 3 pour éviter les timeouts)
   let pagesChecked = 0;
   const MAX_PAGES_TO_CHECK = 3;
 
-  for (const pattern of CONTACT_PAGE_PATTERNS) {
-    if (pagesChecked >= MAX_PAGES_TO_CHECK) {
-      console.log(`  ⏭️ Skipping remaining patterns (checked ${MAX_PAGES_TO_CHECK} pages)`);
+  // Boucle sur les domaines (original + normalisé)
+  for (const domain of domainsToTry) {
+    if (allContacts.length > 0) {
+      // Arrêter si on a déjà trouvé des contacts
       break;
     }
 
-    const contactPageUrl = `${rootDomain}${pattern}`;
-
-    try {
-      console.log(`  → Trying: ${contactPageUrl}`);
-      pagesChecked++;
-
-      // Scraper avec Jina AI Reader avec timeout de 10s
-      const jinaUrl = `https://r.jina.ai/${contactPageUrl}`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-
-      const response = await fetch(jinaUrl, {
-        headers: {
-          'Accept': 'text/plain',
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        continue; // Page not found, essayer le suivant
-      }
-
-      const content = await response.text();
-
-      // Vérifier que la page contient bien du contenu de contact
-      const hasContactInfo =
-        content.includes('@') ||
-        content.includes('contact') ||
-        content.includes('email') ||
-        content.includes('phone') ||
-        content.includes('b2b') ||
-        content.includes('sales') ||
-        content.includes('business');
-
-      if (!hasContactInfo) {
-        continue; // Pas d'info de contact, essayer la suivante
-      }
-
-      console.log(`  ✅ Found contact page: ${contactPageUrl}`);
-
-      // Extraire les contacts
-      const contacts = extractContactsFromContent(content, websiteUrl);
-
-      if (contacts.length > 0) {
-        console.log(`  📇 Extracted ${contacts.length} contacts from ${pattern}`);
-        allContacts.push(...contacts);
-        // Arrêter dès qu'on trouve des contacts
+    for (const pattern of CONTACT_PAGE_PATTERNS) {
+      if (pagesChecked >= MAX_PAGES_TO_CHECK) {
+        console.log(`  ⏭️ Skipping remaining patterns (checked ${MAX_PAGES_TO_CHECK} pages)`);
         break;
       }
 
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.log(`  ⏱️ Timeout scraping ${pattern}`);
-      } else {
-        console.log(`  ✗ Failed to scrape ${pattern}`);
+      const contactPageUrl = `${domain}${pattern}`;
+
+      try {
+        console.log(`  → Trying: ${contactPageUrl}`);
+        pagesChecked++;
+
+        // Scraper avec Jina AI Reader avec timeout de 10s
+        const jinaUrl = `https://r.jina.ai/${contactPageUrl}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+        const response = await fetch(jinaUrl, {
+          headers: {
+            'Accept': 'text/plain',
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          continue; // Page not found, essayer le suivant
+        }
+
+        const content = await response.text();
+
+        // Vérifier que la page contient bien du contenu de contact
+        const hasContactInfo =
+          content.includes('@') ||
+          content.includes('contact') ||
+          content.includes('email') ||
+          content.includes('phone') ||
+          content.includes('b2b') ||
+          content.includes('sales') ||
+          content.includes('business');
+
+        if (!hasContactInfo) {
+          continue; // Pas d'info de contact, essayer la suivante
+        }
+
+        console.log(`  ✅ Found contact page: ${contactPageUrl}`);
+
+        // Extraire les contacts
+        const contacts = extractContactsFromContent(content, websiteUrl);
+
+        if (contacts.length > 0) {
+          console.log(`  📇 Extracted ${contacts.length} contacts from ${pattern}`);
+          allContacts.push(...contacts);
+          // Arrêter dès qu'on trouve des contacts
+          break;
+        }
+
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.log(`  ⏱️ Timeout scraping ${pattern}`);
+        } else {
+          console.log(`  ✗ Failed to scrape ${pattern}`);
+        }
+        continue;
       }
-      continue;
     }
   }
 
