@@ -108,10 +108,36 @@ export default async function BrandsPage({ searchParams }: BrandsPageProps) {
                     </div>
                   )}
 
-                  {/* Best sellers count */}
+                  {/* Best sellers mini gallery */}
                   {brand.best_sellers && brand.best_sellers.length > 0 && (
-                    <div className="mt-4 text-xs text-gray-500">
-                      🌟 {brand.best_sellers.length} best seller{brand.best_sellers.length > 1 ? 's' : ''}
+                    <div className="mt-4">
+                      <div className="text-xs text-gray-500 mb-2 font-medium">
+                        🌟 {brand.best_sellers.length} best seller{brand.best_sellers.length > 1 ? 's' : ''}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {brand.best_sellers.slice(0, 3).map((product: any, idx: number) => (
+                          product.image_url ? (
+                            <div
+                              key={idx}
+                              className="aspect-square relative rounded overflow-hidden bg-gray-100"
+                              title={product.name}
+                            >
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div
+                              key={idx}
+                              className="aspect-square relative rounded bg-gray-100 flex items-center justify-center text-gray-400 text-xs"
+                            >
+                              📦
+                            </div>
+                          )
+                        ))}
+                      </div>
                     </div>
                   )}
 
