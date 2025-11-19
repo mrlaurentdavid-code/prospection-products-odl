@@ -5,6 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { QuickAnalyzeUnified } from "@/components/QuickAnalyzeUnified";
 import { LatestGemsHeader } from "@/components/LatestGemsHeader";
 
+// Force dynamic rendering (no caching)
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function DashboardPage() {
   const supabase = await createClient();
 
