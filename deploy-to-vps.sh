@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 # Configuration
 VPS_USER=${VPS_USER:-"root"}
 VPS_HOST=${VPS_HOST:-"prosp.odl-tools.ch"}
-VPS_PATH=${VPS_PATH:-"/var/www/prospection-odl"}
+VPS_PATH=${VPS_PATH:-"/opt/prospection-odl"}
 PM2_APP_NAME="prospection-odl"
 
 echo -e "${BLUE}============================================${NC}"
