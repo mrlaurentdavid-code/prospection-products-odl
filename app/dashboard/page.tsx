@@ -12,7 +12,11 @@ export default async function DashboardPage() {
   const { data: stats } = await supabase.rpc('get_prospection_products_stats');
 
   // Récupérer les stats des marques
-  const { data: brandStats } = await supabase.rpc('get_prospection_brands_stats');
+  const { data: brandStats, error: brandStatsError } = await supabase.rpc('get_prospection_brands_stats');
+
+  // Debug logging
+  console.log('🔍 Brand Stats Data:', brandStats);
+  console.log('🔍 Brand Stats Error:', brandStatsError);
 
   // Récupérer les 5 derniers produits pour le bandeau
   const { data: latestProducts } = await supabase.rpc('get_prospection_products_filtered', {
