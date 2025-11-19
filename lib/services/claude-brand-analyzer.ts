@@ -55,6 +55,9 @@ Title: ${scrapedData.title || 'N/A'}
 Description: ${scrapedData.description || 'N/A'}
 Content: ${scrapedData.content.slice(0, 20000)} // Plus de contenu pour capturer l'univers de la marque
 
+IMAGES DISPONIBLES (trouvées par le scraper):
+${scrapedData.images.slice(0, 15).map((img, idx) => `${idx + 1}. ${img}`).join('\n')}
+
 INSTRUCTIONS:
 1. Extrait le nom exact de la marque
 2. Identifie le tagline/slogan de la marque s'il existe
@@ -65,16 +68,16 @@ INSTRUCTIONS:
    - Traduis en français si le contenu est dans une autre langue
 
 4. **SUPER PRIORITAIRE: Trouve l'URL du LOGO de la marque**:
-   - Cherche dans le header (balise <header>, <nav>)
-   - Cherche les balises <img> avec attributs: class="logo", id="logo", alt="logo"
-   - Cherche dans le footer
-   - Cherche les URLs contenant "logo", "brand", "mark"
-   - Retourne l'URL complète de l'image (PNG, SVG, JPG, WEBP)
+   - **CHOISIS parmi la liste "IMAGES DISPONIBLES" ci-dessus**
+   - Cherche les URLs contenant "logo", "brand", "mark", ou situés en haut de la page
+   - Retourne l'URL EXACTE depuis la liste (copie-colle l'URL complète)
    - Préfère le logo principal/header plutôt que les variations
+   - Si aucun logo trouvé dans la liste, retourne null
 
 5. Identifie les **3-5 best sellers / produits phares** de la marque:
    - Nom du produit
-   - URL de l'image du produit si disponible
+   - **CHOISIS l'URL de l'image depuis la liste "IMAGES DISPONIBLES"**
+   - Retourne l'URL EXACTE (copie-colle depuis la liste)
    - Catégorie approximative (ex: "Outdoor Grills", "Beauty Device", "Coffee Machine")
 
 6. Liste les **catégories de produits** couvertes par la marque (max 5 catégories générales)
@@ -82,9 +85,11 @@ INSTRUCTIONS:
    - Évite les sous-catégories trop spécifiques
 
 7. Images de la marque (2-4 images représentatives de l'univers):
+   - **CHOISIS 2-4 URLs depuis la liste "IMAGES DISPONIBLES"**
    - Photos lifestyle/ambiance
    - Visuels des produits en contexte
    - Pas le logo
+   - Retourne les URLs EXACTES (copie-colle depuis la liste)
 
 8. Informations entreprise:
    - Nom de l'entreprise (peut être différent du nom de marque)
