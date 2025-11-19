@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { BrandStatusBadge } from "@/components/BrandStatusBadge";
+import { BrandContactsSection } from "@/components/BrandContactsSection";
 
 interface BrandDetailPageProps {
   params: Promise<{
@@ -212,76 +213,14 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
 
       {/* Contacts */}
       {brand.contacts && brand.contacts.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Contacts ({brand.contacts.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {brand.contacts.map((contact: any, idx: number) => (
-                <div key={idx} className="border rounded-lg p-4 hover:border-blue-300 transition-colors">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      {contact.name && (
-                        <p className="font-medium text-gray-900">{contact.name}</p>
-                      )}
-                      {contact.title && (
-                        <p className="text-sm text-gray-600">{contact.title}</p>
-                      )}
-                      {!contact.name && !contact.title && (
-                        <p className="font-medium text-gray-600">Contact {idx + 1}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {contact.location && (
-                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                          {contact.location}
-                        </span>
-                      )}
-                      {contact.confidence && (
-                        <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded">
-                          {Math.round(contact.confidence * 100)}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-3 space-y-1 text-sm">
-                    {contact.email && (
-                      <div className="flex items-center justify-between">
-                        <p>
-                          📧 <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">
-                            {contact.email}
-                          </a>
-                        </p>
-                        {/* TODO: Add Email Composer button here */}
-                      </div>
-                    )}
-                    {contact.linkedin_url && (
-                      <p>
-                        💼 <a
-                          href={contact.linkedin_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          LinkedIn
-                        </a>
-                      </p>
-                    )}
-                    {contact.phone && (
-                      <p className="text-gray-600">📞 {contact.phone}</p>
-                    )}
-                    {contact.source && (
-                      <p className="text-xs text-gray-500">
-                        Source: {contact.source === 'hunter_io' ? 'Hunter.io' : contact.source === 'claude_extraction' ? 'Claude AI' : contact.source}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <BrandContactsSection
+          contacts={brand.contacts}
+          brandId={brand.id}
+          brandName={brand.name}
+          brandDescription={brand.description}
+          companyName={brand.company_name}
+          categories={brand.categories || []}
+        />
       )}
 
       {/* Brand Images */}

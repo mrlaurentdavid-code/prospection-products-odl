@@ -4,18 +4,19 @@ import { createClient } from '@/lib/supabase/server';
 /**
  * POST /api/email/log
  * Enregistre un email envoyé dans la table email_logs
+ * Supports both productId and brandId
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { productId, toEmail, subject, body: emailBody, contactName, contactTitle } = body;
+    const { productId, brandId, toEmail, subject, body: emailBody, contactName, contactTitle } = body;
 
-    console.log('📧 Logging email sent:', { productId, toEmail, contactName });
+    console.log('📧 Logging email sent:', { productId, brandId, toEmail, contactName });
 
-    // Validation
-    if (!productId || !toEmail || !subject || !emailBody) {
+    // Validation - must have either productId or brandId
+    if ((!productId && !brandId) || !toEmail || !subject || !emailBody) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
+        { success: false, error: 'Missing required fields (need productId or brandId, toEmail, subject, body)' },
         { status: 400 }
       );
     }
@@ -29,9 +30,10 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ No authenticated user, logging email anyway');
     }
 
-    // Enregistrer l'email via RPC
+    // Enregistrer l'email via RPC (accepte product_id OU brand_id comme null)
     const { data, error } = await supabase.rpc('log_email_sent', {
-      p_product_id: productId,
+      p_product_id: productId || null,
+      p_brand_id: brandId || null,
       p_to_email: toEmail,
       p_subject: subject,
       p_body: emailBody,
