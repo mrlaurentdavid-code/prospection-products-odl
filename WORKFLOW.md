@@ -9,8 +9,10 @@
 1. **Local Development**: `/Users/laurentdavid/Desktop/App ODL-Tools/prospection-odl`
 2. **VPS Production**: Hostinger VPS at `31.97.193.159` (prosp.odl-tools.ch)
    - Location: `/opt/prospection-odl`
-   - Process Manager: PM2
-   - Node.js: v20+ via nvm
+   - **Deployment Method**: Docker + Traefik reverse proxy
+   - Container: `prospection-app` (Docker image: `prospection-odl:latest`)
+   - Docker Compose: `/root/docker-compose.prospection.yml`
+   - ⚠️ **Note**: PM2 exists at `/opt/prospection-odl` but is NOT used for production
 3. **Database**: Supabase PostgreSQL (shared with other ODL projects)
    - Schema: `prospection`
    - Migrations in: `/supabase/migrations/`
@@ -20,7 +22,7 @@
 
 ### 🚫 NOT USED
 - ❌ Vercel (DO NOT DEPLOY THERE)
-- ❌ Docker (not part of this project)
+- ❌ PM2 (exists but not used for production)
 - ❌ Any other cloud platform
 
 ---
@@ -65,7 +67,9 @@ git push
 # NEVER use supabase CLI for this project
 ```
 
-### 3. DEPLOYING TO PRODUCTION (VPS)
+### 3. DEPLOYING TO PRODUCTION (VPS - Docker)
+
+**IMPORTANT**: Production uses Docker, NOT PM2!
 
 **ALWAYS follow these steps in order:**
 
@@ -74,31 +78,29 @@ git push
 git status  # Should be clean
 git push    # If needed
 
-# Step 2: Deploy to VPS using deployment script
-cd "/Users/laurentdavid/Desktop/App ODL-Tools/prospection-odl"
-./deploy-to-vps.sh
-
-# OR manual deployment:
+# Step 2: Sync code to VPS
 sshpass -p 'DuTL/D/zI4afwFE@,9iV' rsync -avz --delete \
   --exclude 'node_modules' --exclude '.next' --exclude '.git' \
   --exclude '.env.local' --exclude 'logs' \
   -e "ssh -o StrictHostKeyChecking=no" \
   ./ root@31.97.193.159:/opt/prospection-odl/
 
-# Step 3: SSH into VPS and rebuild
+# Step 3: Rebuild and restart Docker container
 sshpass -p 'DuTL/D/zI4afwFE@,9iV' ssh -o StrictHostKeyChecking=no root@31.97.193.159 \
-  "export NVM_DIR=\"\$HOME/.nvm\" && \
-   [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\" && \
-   nvm use 20 && \
-   cd /opt/prospection-odl && \
-   npm install && \
-   rm -rf .next && \
-   npm run build && \
-   pm2 restart prospection-odl --update-env"
+  "cd /root && \
+   docker-compose -f docker-compose.prospection.yml down && \
+   docker-compose -f docker-compose.prospection.yml up -d --build"
+
+# Alternative if container name conflict:
+sshpass -p 'DuTL/D/zI4afwFE@,9iV' ssh -o StrictHostKeyChecking=no root@31.97.193.159 \
+  "docker stop prospection-app && \
+   docker rm prospection-app && \
+   cd /root && \
+   docker-compose -f docker-compose.prospection.yml up -d --build"
 
 # Step 4: Verify deployment
-# - Check PM2 status: pm2 status prospection-odl
-# - Check logs: pm2 logs prospection-odl --lines 20
+# - Check Docker status: docker ps | grep prospection
+# - Check logs: docker logs prospection-app --tail 20
 # - Test URL: https://prosp.odl-tools.ch/dashboard
 ```
 
