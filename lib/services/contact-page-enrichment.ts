@@ -182,20 +182,35 @@ export async function enrichContactsFromWebsite(websiteUrl: string): Promise<Con
 
   const allContacts: Contact[] = [];
 
-  // Essayer chaque pattern de page de contact
+  // Essayer chaque pattern de page de contact (max 3 pour éviter les timeouts)
+  let pagesChecked = 0;
+  const MAX_PAGES_TO_CHECK = 3;
+
   for (const pattern of CONTACT_PAGE_PATTERNS) {
+    if (pagesChecked >= MAX_PAGES_TO_CHECK) {
+      console.log(`  ⏭️ Skipping remaining patterns (checked ${MAX_PAGES_TO_CHECK} pages)`);
+      break;
+    }
+
     const contactPageUrl = `${rootDomain}${pattern}`;
 
     try {
       console.log(`  → Trying: ${contactPageUrl}`);
+      pagesChecked++;
 
-      // Scraper avec Jina AI Reader
+      // Scraper avec Jina AI Reader avec timeout de 10s
       const jinaUrl = `https://r.jina.ai/${contactPageUrl}`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
       const response = await fetch(jinaUrl, {
         headers: {
           'Accept': 'text/plain',
         },
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         continue; // Page not found, essayer le suivant
@@ -225,15 +240,16 @@ export async function enrichContactsFromWebsite(websiteUrl: string): Promise<Con
       if (contacts.length > 0) {
         console.log(`  📇 Extracted ${contacts.length} contacts from ${pattern}`);
         allContacts.push(...contacts);
-      }
-
-      // Arrêter après la première page de contact trouvée avec des contacts
-      if (allContacts.length > 0) {
+        // Arrêter dès qu'on trouve des contacts
         break;
       }
 
-    } catch (error) {
-      console.log(`  ✗ Failed to scrape ${pattern}:`, error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log(`  ⏱️ Timeout scraping ${pattern}`);
+      } else {
+        console.log(`  ✗ Failed to scrape ${pattern}`);
+      }
       continue;
     }
   }

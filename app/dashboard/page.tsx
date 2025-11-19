@@ -11,6 +11,9 @@ export default async function DashboardPage() {
   // Récupérer les stats des produits
   const { data: stats } = await supabase.rpc('get_prospection_products_stats');
 
+  // Récupérer les stats des marques
+  const { data: brandStats } = await supabase.rpc('get_prospection_brands_stats');
+
   // Récupérer les 5 derniers produits pour le bandeau
   const { data: latestProducts } = await supabase.rpc('get_prospection_products_filtered', {
     p_status: null,
@@ -24,6 +27,11 @@ export default async function DashboardPage() {
   const toReviewCount = stats?.find((s: any) => s.status === 'to_review')?.count || 0;
   const contactedCount = stats?.find((s: any) => s.status === 'contacted')?.count || 0;
   const archivedCount = stats?.find((s: any) => s.status === 'archived')?.count || 0;
+
+  // Compter les marques par statut
+  const brandsToReviewCount = brandStats?.[0]?.to_review || 0;
+  const brandsContactedCount = brandStats?.[0]?.contacted || 0;
+  const brandsArchivedCount = brandStats?.[0]?.archived || 0;
 
   return (
     <div className="space-y-0">
@@ -46,7 +54,7 @@ export default async function DashboardPage() {
       {/* Quick Analyze */}
       <QuickAnalyzeUnified />
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Produits */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link href="/dashboard/products">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer">
@@ -92,6 +100,60 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{archivedCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Historique complet
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* Stats Cards - Marques */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Link href="/dashboard/brands?status=to_review">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-amber-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Marques à review
+              </CardTitle>
+              <Badge variant="secondary">{brandsToReviewCount}</Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{brandsToReviewCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                En attente d'analyse
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/dashboard/brands?status=contacted">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-blue-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Marques contactées
+              </CardTitle>
+              <Badge variant="default">{brandsContactedCount}</Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{brandsContactedCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Emails envoyés
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/dashboard/brands?status=archived">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-l-gray-400">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Marques archivées
+              </CardTitle>
+              <Badge variant="outline">{brandsArchivedCount}</Badge>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{brandsArchivedCount}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Historique complet
               </p>
