@@ -78,7 +78,7 @@ export async function scrapeWithJina(url: string): Promise<JinaScrapedData> {
         // Exclure les images data: et SVG
         if (url.includes('data:image') || urlLower.endsWith('.svg')) return false;
 
-        // Exclure les logos, icônes, sprites, schémas
+        // Exclure les logos, icônes, sprites, schémas, specs, tables
         const excludeKeywords = [
           'logo', 'icon', 'sprite', 'favicon',
           'schema', 'diagram', 'illustration', 'picto',
@@ -86,7 +86,11 @@ export async function scrapeWithJina(url: string): Promise<JinaScrapedData> {
           'thumbnail', 'thumb', 'badge', 'stamp',
           'banner', 'header', 'footer', 'nav',
           'menu', 'button', 'arrow', 'chevron',
-          'placeholder', 'loading', 'spinner'
+          'placeholder', 'loading', 'spinner',
+          'spec', 'specification', 'table', 'grid',
+          'tech', 'feature', 'detail', 'info',
+          'dimension', 'price', 'pricing', 'cost',
+          'datasheet', 'pdf', 'document', 'brochure'
         ];
 
         if (excludeKeywords.some(keyword => urlLower.includes(keyword))) return false;

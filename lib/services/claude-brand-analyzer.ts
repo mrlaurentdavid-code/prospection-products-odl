@@ -69,14 +69,16 @@ INSTRUCTIONS:
 
 4. **SUPER PRIORITAIRE: Trouve l'URL du LOGO de la marque**:
    - **CHOISIS parmi la liste "IMAGES DISPONIBLES" ci-dessus**
-   - Cherche les URLs contenant "logo", "brand", "mark", ou situés en haut de la page
+   - Cherche les URLs contenant "logo", "brand", "mark"
    - Retourne l'URL EXACTE depuis la liste (copie-colle l'URL complète)
    - Préfère le logo principal/header plutôt que les variations
    - Si aucun logo trouvé dans la liste, retourne null
 
 5. Identifie les **3-5 best sellers / produits phares** de la marque:
    - Nom du produit
-   - **CHOISIS l'URL de l'image depuis la liste "IMAGES DISPONIBLES"**
+   - **CHOISIS l'URL de l'image PHOTO DU PRODUIT depuis la liste "IMAGES DISPONIBLES"**
+   - **ÉVITE ABSOLUMENT**: tableaux de specs, screenshots, diagrammes, comparaisons, charts
+   - **CHOISIS UNIQUEMENT**: vraies photos produits (vue produit seul sur fond blanc/neutre)
    - Retourne l'URL EXACTE (copie-colle depuis la liste)
    - Catégorie approximative (ex: "Outdoor Grills", "Beauty Device", "Coffee Machine")
 
