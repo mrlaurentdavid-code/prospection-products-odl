@@ -85,15 +85,17 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {brand.best_sellers.map((bs: any, idx: number) => (
                 <div key={idx} className="text-center">
-                  {bs.image_url && (
-                    <div className="aspect-square relative rounded-lg overflow-hidden mb-2 bg-gray-100">
+                  <div className="aspect-square relative rounded-lg overflow-hidden mb-2 bg-gray-100 flex items-center justify-center">
+                    {bs.image_url ? (
                       <img
                         src={bs.image_url}
                         alt={bs.name}
                         className="w-full h-full object-cover"
                       />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="text-gray-400 text-4xl">📦</div>
+                    )}
+                  </div>
                   <p className="text-sm font-medium line-clamp-2">{bs.name}</p>
                   {bs.category && (
                     <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded mt-1 inline-block">
@@ -291,12 +293,16 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {brand.brand_images.map((img: string, idx: number) => (
-                <div key={idx} className="aspect-video relative rounded-lg overflow-hidden bg-gray-100">
-                  <img
-                    src={img}
-                    alt={`${brand.name} visual ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
+                <div key={idx} className="aspect-video relative rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                  {img ? (
+                    <img
+                      src={img}
+                      alt={`${brand.name} visual ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="text-gray-400 text-4xl">🖼️</div>
+                  )}
                 </div>
               ))}
             </div>
