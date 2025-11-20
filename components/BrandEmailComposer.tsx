@@ -73,10 +73,14 @@ export function BrandEmailComposer({
         const templatesResponse = await fetch('/api/email/templates');
         if (templatesResponse.ok) {
           const templatesData = await templatesResponse.json();
-          setTemplates(templatesData.templates || []);
+          // Filter ONLY Brand templates (name contains "Brand" or is "Blank Template")
+          const brandTemplates = (templatesData.templates || []).filter(
+            (t: EmailTemplate) => t.name.includes('Brand') || t.name === 'Blank Template'
+          );
+          setTemplates(brandTemplates);
 
           // Sélectionner le premier template "first_contact" en anglais par défaut
-          const defaultTemplate = templatesData.templates?.find(
+          const defaultTemplate = brandTemplates?.find(
             (t: EmailTemplate) => t.type === 'first_contact' && t.language === 'en'
           );
           if (defaultTemplate) {

@@ -65,10 +65,14 @@ export function EmailComposer({
         const templatesResponse = await fetch('/api/email/templates');
         if (templatesResponse.ok) {
           const templatesData = await templatesResponse.json();
-          setTemplates(templatesData.templates || []);
+          // Filter ONLY Product templates (name contains "Product" or is "Blank Template")
+          const productTemplates = (templatesData.templates || []).filter(
+            (t: EmailTemplate) => t.name.includes('Product') || t.name === 'Blank Template'
+          );
+          setTemplates(productTemplates);
 
           // Sélectionner le premier template "first_contact" en anglais par défaut
-          const defaultTemplate = templatesData.templates?.find(
+          const defaultTemplate = productTemplates?.find(
             (t: EmailTemplate) => t.type === 'first_contact' && t.language === 'en'
           );
           if (defaultTemplate) {
