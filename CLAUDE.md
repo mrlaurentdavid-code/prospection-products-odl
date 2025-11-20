@@ -24,8 +24,10 @@
 - **SendGrid** (gratuit 100 emails/jour) - Prospection email
 
 ### Déploiement
-- **Vercel** (gratuit)
-- **URL**: prospection.odl-tools.ch
+- **Hostinger VPS** (31.97.193.159)
+- **Docker + Docker Compose** (conteneurisation)
+- **Traefik** (reverse proxy + HTTPS automatique)
+- **URL**: https://prosp.odl-tools.ch
 - **Coût estimé**: ~0.30€/mois (quasi gratuit)
 
 ## 📊 ÉTAT D'AVANCEMENT ACTUEL
@@ -197,7 +199,7 @@ prospection-odl/
    🏷️ [Catégorie]
    🏢 [Société]
    💰 MSRP: €XX (lien)
-   👉 prospection.odl-tools.ch/products/[id]"
+   👉 prosp.odl-tools.ch/products/[id]"
       ↓
 
 4. REVIEW (Frontend)
@@ -237,7 +239,7 @@ prospection-odl/
 - **Claude API**: ~$0.003 par analyse (estimation)
 - **SendGrid**: Gratuit jusqu'à 100 emails/jour
 - **Supabase**: Gratuit (tier Free)
-- **Vercel**: Gratuit (tier Hobby)
+- **Hostinger VPS**: Inclus dans abonnement existant
 - **Total estimé**: ~0.30€/mois (quasi gratuit)
 
 ### Points d'attention
