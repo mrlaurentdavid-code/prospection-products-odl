@@ -40,22 +40,47 @@ export default async function TemplatesPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <code className="px-3 py-2 bg-white rounded border text-sm">
-              {'{{company_name}}'}
-            </code>
-            <code className="px-3 py-2 bg-white rounded border text-sm">
-              {'{{product_name}}'}
-            </code>
-            <code className="px-3 py-2 bg-white rounded border text-sm">
-              {'{{product_category}}'}
-            </code>
-            <code className="px-3 py-2 bg-white rounded border text-sm">
-              {'{{sender_name}}'}
-            </code>
-            <code className="px-3 py-2 bg-white rounded border text-sm">
-              {'{{sender_title}}'}
-            </code>
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-blue-800 mb-2">📦 Templates Produit</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{product_name}}'}
+                </code>
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{company_name}}'}
+                </code>
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{product_category}}'}
+                </code>
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{sender_name}}'}
+                </code>
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{sender_title}}'}
+                </code>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-blue-800 mb-2">🏢 Templates Marque</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{brand_name}}'}
+                </code>
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{company_name}}'}
+                </code>
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{product_category}}'}
+                </code>
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{sender_name}}'}
+                </code>
+                <code className="px-3 py-2 bg-white rounded border text-sm">
+                  {'{{sender_title}}'}
+                </code>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
