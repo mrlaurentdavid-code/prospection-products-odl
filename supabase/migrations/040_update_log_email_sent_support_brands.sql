@@ -25,7 +25,10 @@ CHECK (
   (product_id IS NULL AND brand_id IS NOT NULL)
 );
 
--- 4. Recreate log_email_sent function with brand_id support
+-- 4. Drop old log_email_sent function signatures
+DROP FUNCTION IF EXISTS public.log_email_sent(UUID, VARCHAR, VARCHAR, TEXT, VARCHAR, VARCHAR);
+
+-- 5. Create new log_email_sent function with brand_id support
 CREATE OR REPLACE FUNCTION public.log_email_sent(
   p_to_email VARCHAR(255),
   p_subject VARCHAR(255),
@@ -128,10 +131,11 @@ BEGIN
   RAISE NOTICE '============================================';
   RAISE NOTICE '';
   RAISE NOTICE '⚙️ Modifications:';
-  RAISE NOTICE '  - email_logs.brand_id ajouté (UUID, nullable)';
-  RAISE NOTICE '  - email_logs.product_id rendu nullable';
-  RAISE NOTICE '  - Contrainte: doit avoir product_id OU brand_id (pas les deux)';
-  RAISE NOTICE '  - log_email_sent() mis à jour pour accepter brand_id';
+  RAISE NOTICE '  1. email_logs.brand_id ajouté (UUID, nullable)';
+  RAISE NOTICE '  2. email_logs.product_id rendu nullable';
+  RAISE NOTICE '  3. Contrainte: doit avoir product_id OU brand_id (pas les deux)';
+  RAISE NOTICE '  4. Supprimé ancienne signature de log_email_sent()';
+  RAISE NOTICE '  5. Créé nouvelle log_email_sent() avec brand_id et paramètres réordonnés';
   RAISE NOTICE '';
   RAISE NOTICE 'Comportement:';
   RAISE NOTICE '  - Peut logger un email pour un produit (product_id)';
