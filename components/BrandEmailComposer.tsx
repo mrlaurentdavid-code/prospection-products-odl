@@ -77,6 +77,14 @@ export function BrandEmailComposer({
           const brandTemplates = (templatesData.templates || []).filter(
             (t: EmailTemplate) => t.name.includes('Brand') || t.name === 'Blank Template'
           );
+
+          console.log('🔍 All templates:', templatesData.templates?.map((t: EmailTemplate) => t.name));
+          console.log('🏷️ Filtered Brand templates:', brandTemplates.map((t: EmailTemplate) => t.name));
+
+          if (brandTemplates.length === 0) {
+            console.warn('⚠️ No Brand templates found! Migration 041 may not be applied yet.');
+          }
+
           setTemplates(brandTemplates);
 
           // Sélectionner le premier template "first_contact" en anglais par défaut
