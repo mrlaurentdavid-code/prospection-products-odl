@@ -28,8 +28,7 @@ INSERT INTO prospection.email_templates (
   type,
   subject,
   body_html,
-  language,
-  is_active
+  language
 )
 SELECT
   'First Contact - Brand - English',
@@ -40,8 +39,7 @@ SELECT
     'your product',
     'your brand'
   ),
-  language,
-  is_active
+  language
 FROM prospection.email_templates
 WHERE type = 'first_contact'
   AND language = 'en'
@@ -53,8 +51,7 @@ INSERT INTO prospection.email_templates (
   type,
   subject,
   body_html,
-  language,
-  is_active
+  language
 )
 SELECT
   'Follow-up 1 - Brand - English',
@@ -65,8 +62,7 @@ SELECT
     'your product',
     'your brand'
   ),
-  language,
-  is_active
+  language
 FROM prospection.email_templates
 WHERE type = 'followup_1'
   AND language = 'en'
