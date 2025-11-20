@@ -118,6 +118,7 @@ export function BrandEmailComposer({
     '{{contact_name}}': contactFirstName,
     '{{company_name}}': companyName || brandName,
     '{{brand_name}}': brandName,
+    '{{entity_name}}': brandName, // Fallback pour les templates génériques
     '{{product_name}}': brandName, // Pour compatibilité avec les templates existants
     '{{product_category}}': categoryDescription, // Utilise les catégories de la marque
     '{{brand_description}}': brandDescription?.substring(0, 150) || 'your brand',

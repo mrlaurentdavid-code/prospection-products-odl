@@ -105,6 +105,7 @@ export function EmailComposer({
     '{{contact_name}}': contactFirstName,
     '{{company_name}}': companyName || 'your company',
     '{{product_name}}': productName || 'your product',
+    '{{entity_name}}': productName || 'your product', // Fallback pour les templates génériques
     '{{product_category}}': productCategory || 'this category',
     '{{sender_name}}': userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : 'User',
     '{{sender_title}}': userProfile?.title || 'Product Sourcing Manager',
