@@ -27,11 +27,11 @@ CHECK (
 
 -- 4. Recreate log_email_sent function with brand_id support
 CREATE OR REPLACE FUNCTION public.log_email_sent(
-  p_product_id UUID DEFAULT NULL,
-  p_brand_id UUID DEFAULT NULL,
   p_to_email VARCHAR(255),
   p_subject VARCHAR(255),
   p_body TEXT,
+  p_product_id UUID DEFAULT NULL,
+  p_brand_id UUID DEFAULT NULL,
   p_contact_name VARCHAR(255) DEFAULT NULL,
   p_contact_title VARCHAR(255) DEFAULT NULL
 )

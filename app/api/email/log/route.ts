@@ -32,11 +32,11 @@ export async function POST(request: NextRequest) {
 
     // Enregistrer l'email via RPC (accepte product_id OU brand_id comme null)
     const { data, error } = await supabase.rpc('log_email_sent', {
-      p_product_id: productId || null,
-      p_brand_id: brandId || null,
       p_to_email: toEmail,
       p_subject: subject,
       p_body: emailBody,
+      p_product_id: productId || null,
+      p_brand_id: brandId || null,
       p_contact_name: contactName || null,
       p_contact_title: contactTitle || null,
     });
