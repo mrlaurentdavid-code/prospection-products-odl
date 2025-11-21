@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
 async function main() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('❌ Missing environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY required');
+    process.exit(1);
+  }
+
   const supabase = createClient(
-    'https://xewnzetqvrovqjcvwkus.supabase.co',
-    'YOUR_SERVICE_ROLE_KEY_HERE'
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 
   // Trouver le produit hofats.com
