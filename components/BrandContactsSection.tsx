@@ -3,8 +3,29 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Mail } from 'lucide-react';
 import { BrandEmailComposer } from './BrandEmailComposer';
+import { AddContactModal } from '@/components/AddContactModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Contact } from '@/lib/utils/validators';
+
+// Régions pour le filtre
+const REGION_FILTERS = [
+  { value: 'all', label: 'Toutes les régions' },
+  { value: 'DACH', label: '🏔️ DACH (DE-AT-CH)' },
+  { value: 'CH', label: '🇨🇭 Suisse' },
+  { value: 'DE', label: '🇩🇪 Allemagne' },
+  { value: 'AT', label: '🇦🇹 Autriche' },
+  { value: 'FR', label: '🇫🇷 France' },
+  { value: 'EU', label: '🇪🇺 Europe' },
+];
 
 interface BrandContact {
   name?: string;
@@ -24,6 +45,31 @@ interface BrandContactsSectionProps {
   brandDescription: string | null;
   companyName: string;
   categories: string[];
+  onContactsUpdate?: (contacts: BrandContact[]) => void;
+}
+
+/**
+ * Filtre les contacts par région
+ */
+function filterContactsByRegion(contacts: BrandContact[], region: string): BrandContact[] {
+  if (region === 'all') return contacts;
+
+  const regionKeywords: Record<string, string[]> = {
+    DACH: ['switzerland', 'schweiz', 'suisse', 'germany', 'deutschland', 'austria', 'österreich', 'dach', 'ch', 'de', 'at'],
+    CH: ['switzerland', 'schweiz', 'suisse', 'zurich', 'zürich', 'geneva', 'genève', 'basel', 'bern', 'ch'],
+    DE: ['germany', 'deutschland', 'berlin', 'munich', 'münchen', 'frankfurt', 'hamburg', 'de'],
+    AT: ['austria', 'österreich', 'vienna', 'wien', 'salzburg', 'at'],
+    FR: ['france', 'paris', 'lyon', 'marseille', 'fr'],
+    EU: ['europe', 'eu', 'emea'],
+  };
+
+  const keywords = regionKeywords[region] || [];
+
+  return contacts.filter((contact) => {
+    const location = (contact.location || '').toLowerCase();
+    const title = (contact.title || '').toLowerCase();
+    return keywords.some((kw) => location.includes(kw) || title.includes(kw));
+  });
 }
 
 export function BrandContactsSection({
@@ -33,9 +79,13 @@ export function BrandContactsSection({
   brandDescription,
   companyName,
   categories,
+  onContactsUpdate,
 }: BrandContactsSectionProps) {
   const [selectedContact, setSelectedContact] = useState<BrandContact | null>(null);
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [regionFilter, setRegionFilter] = useState('all');
+  const [isEnriching, setIsEnriching] = useState(false);
 
   const handleContactClick = (contact: BrandContact) => {
     if (!contact.email) {
@@ -46,15 +96,114 @@ export function BrandContactsSection({
     setEmailComposerOpen(true);
   };
 
+  // Ajouter un contact manuellement
+  const handleAddContact = async (contact: Contact) => {
+    const response = await fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entityType: 'brand',
+        entityId: brandId,
+        contact,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Erreur lors de l\'ajout');
+    }
+
+    const data = await response.json();
+    if (onContactsUpdate) {
+      onContactsUpdate(data.contacts);
+    }
+  };
+
+  // Re-enrichir les contacts via Hunter.io + scraping
+  const handleReEnrich = async () => {
+    setIsEnriching(true);
+    try {
+      const response = await fetch('/api/contacts/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entityType: 'brand',
+          entityId: brandId,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors de l\'enrichissement');
+      }
+
+      const data = await response.json();
+      if (onContactsUpdate) {
+        onContactsUpdate(data.contacts);
+      }
+    } catch (error) {
+      console.error('Erreur enrichissement:', error);
+      alert(error instanceof Error ? error.message : 'Erreur lors de l\'enrichissement');
+    } finally {
+      setIsEnriching(false);
+    }
+  };
+
+  // Filtrer les contacts par région
+  const filteredContacts = filterContactsByRegion(contacts || [], regionFilter);
+
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Contacts ({contacts.length})</CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2">
+              Contacts
+              <Badge variant="secondary">{filteredContacts.length}/{contacts.length}</Badge>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {/* Filtre par région */}
+              <Select value={regionFilter} onValueChange={setRegionFilter}>
+                <SelectTrigger className="w-[160px] h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REGION_FILTERS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReEnrich}
+                disabled={isEnriching}
+              >
+                {isEnriching ? '🔄' : '🔍'} Enrichir
+              </Button>
+              <Button size="sm" onClick={() => setAddContactOpen(true)}>
+                + Ajouter
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {contacts.map((contact: BrandContact, idx: number) => (
+            {filteredContacts.length === 0 && contacts.length > 0 && (
+              <div className="text-center py-4 text-gray-500 text-sm">
+                Aucun contact pour la région sélectionnée. <button className="text-blue-600 underline" onClick={() => setRegionFilter('all')}>Voir tous</button>
+              </div>
+            )}
+            {filteredContacts.length === 0 && contacts.length === 0 && (
+              <div className="text-center py-6 text-gray-500">
+                <div className="text-4xl mb-2">🕵️</div>
+                <p className="text-sm">Aucun contact trouvé</p>
+                <p className="text-xs mt-1">Utilisez "Enrichir" ou ajoutez un contact manuellement</p>
+              </div>
+            )}
+            {filteredContacts.map((contact: BrandContact, idx: number) => (
               <div key={idx} className="border rounded-lg p-4 hover:border-blue-300 transition-colors">
                 <div className="flex justify-between items-start">
                   <div>
@@ -143,6 +292,16 @@ export function BrandContactsSection({
           categories={categories}
         />
       )}
+
+      {/* Modal d'ajout de contact */}
+      <AddContactModal
+        open={addContactOpen}
+        onClose={() => setAddContactOpen(false)}
+        onAdd={handleAddContact}
+        entityType="brand"
+        entityId={brandId}
+        entityName={brandName}
+      />
     </>
   );
 }

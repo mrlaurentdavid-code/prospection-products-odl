@@ -103,11 +103,22 @@ INSTRUCTIONS:
    - Année de fondation si disponible
    - E-commerce actif (true/false)
 
-9. **PRIORITAIRE: Cherche des contacts responsables des marchés Suisse et Européen**:
-   - Focus: "Switzerland Manager", "Swiss Market", "Europe Manager", "Export Manager", "International Sales", "DACH Region"
-   - Extraire: nom, titre/fonction, email, LinkedIn URL, localisation, téléphone
-   - Maximum 3 contacts pertinents pour CH/EU
-   - Localisation: priorité CH > FR > DE > IT > autres EU
+9. **PRIORITAIRE: Cherche des contacts responsables des marchés DACH et Européen**:
+   - FOCUS RÉGIONAL ABSOLU - Cherche dans cet ordre de priorité:
+     1. **DACH** (Germany-Austria-Switzerland): "DACH Manager", "DACH Sales", "DACH Region"
+     2. **Suisse**: "Switzerland Manager", "Swiss Market", "CH Sales", "Schweiz", "Suisse"
+     3. **Allemagne**: "Germany Manager", "DACH", "Deutschland", "DE Sales"
+     4. **Europe**: "Europe Manager", "EMEA", "EU Sales", "European Market"
+     5. **International/Export**: "Export Manager", "International Sales", "Business Development"
+   - TITRES À CIBLER (par ordre de pertinence):
+     * Regional Sales Manager, Country Manager, Area Manager
+     * Business Development Manager, Export Manager
+     * Sales Director, Commercial Director
+     * Key Account Manager, Partner Manager
+     * Managing Director, General Manager (pour filiales locales)
+   - Extraire: nom complet, titre exact, email professionnel, LinkedIn URL, ville/pays, téléphone
+   - Maximum 5 contacts, classés par pertinence pour le marché DACH/Suisse
+   - Localisation (priorité): CH > DE > AT > FR > NL > BE > IT > UK > ES > autres
 
 10. Score de confiance global (0.00 à 1.00)
 

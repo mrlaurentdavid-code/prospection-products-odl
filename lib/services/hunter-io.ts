@@ -330,3 +330,108 @@ export function mergeContacts(claudeContacts: Contact[], hunterContacts: Contact
     .slice(0, 5) // Max 5 contacts
     .map((item) => item.contact);
 }
+
+/**
+ * Merge les contacts existants avec les nouveaux contacts, en préservant les contacts manuels
+ * et en dédupliquant par email ou nom. Priorise les contacts DACH/Europe.
+ *
+ * @param existingContacts - Contacts déjà enregistrés
+ * @param newContacts - Nouveaux contacts à ajouter
+ * @returns Array de contacts mergés et dédupliqués
+ */
+export function mergeAndDeduplicateContacts(
+  existingContacts: Contact[],
+  newContacts: Contact[]
+): Contact[] {
+  // Garder tous les contacts manuels existants (priorité absolue)
+  const manualContacts = existingContacts.filter((c) => c.source === 'manual');
+
+  // Contacts auto existants
+  const autoExistingContacts = existingContacts.filter((c) => c.source !== 'manual');
+
+  // Combiner auto existants + nouveaux
+  const allAutoContacts = [...autoExistingContacts, ...newContacts];
+
+  // Déduplication par email (si disponible) ou par nom
+  const uniqueAutoContacts = allAutoContacts.reduce((acc: Contact[], contact) => {
+    const isDuplicate = acc.some(
+      (c) =>
+        (contact.email && c.email && c.email.toLowerCase() === contact.email.toLowerCase()) ||
+        (contact.name && c.name && c.name.toLowerCase() === contact.name.toLowerCase())
+    );
+
+    if (!isDuplicate) {
+      acc.push(contact);
+    }
+
+    return acc;
+  }, []);
+
+  // Vérifier aussi les doublons avec les contacts manuels
+  const filteredAutoContacts = uniqueAutoContacts.filter((contact) => {
+    return !manualContacts.some(
+      (mc) =>
+        (contact.email && mc.email && mc.email.toLowerCase() === contact.email.toLowerCase()) ||
+        (contact.name && mc.name && mc.name.toLowerCase() === contact.name.toLowerCase())
+    );
+  });
+
+  // Mots-clés prioritaires Suisse/Europe/DACH
+  const swissEuropeKeywords = [
+    'switzerland',
+    'swiss',
+    'suisse',
+    'schweiz',
+    'europe',
+    'european',
+    'eu',
+    'export',
+    'international',
+    'dach',
+    'emea',
+    'germany',
+    'deutschland',
+    'austria',
+    'österreich',
+  ];
+
+  // Calculer un score combiné pour les contacts auto
+  const scoredAutoContacts = filteredAutoContacts.map((contact) => {
+    let score = contact.confidence || 0.5;
+    const title = contact.title?.toLowerCase() || '';
+    const location = contact.location?.toLowerCase() || '';
+
+    // Bonus pour les titres Suisse/Europe
+    if (swissEuropeKeywords.some((keyword) => title.includes(keyword))) {
+      score += 0.3;
+    }
+
+    // Bonus pour la localisation Suisse/Europe
+    if (
+      location.includes('ch') ||
+      location.includes('switzerland') ||
+      location.includes('suisse') ||
+      location.includes('schweiz') ||
+      location.includes('france') ||
+      location.includes('germany') ||
+      location.includes('deutschland') ||
+      location.includes('austria') ||
+      location.includes('europe')
+    ) {
+      score += 0.2;
+    }
+
+    return { contact, score };
+  });
+
+  // Trier par score décroissant
+  const sortedAutoContacts = scoredAutoContacts
+    .sort((a, b) => b.score - a.score)
+    .map((item) => item.contact);
+
+  // Combiner: contacts manuels en premier, puis auto triés par pertinence
+  const combinedContacts = [...manualContacts, ...sortedAutoContacts];
+
+  // Limiter à 10 contacts max
+  return combinedContacts.slice(0, 10);
+}

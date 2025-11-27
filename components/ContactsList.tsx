@@ -6,15 +6,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmailComposer } from '@/components/EmailComposer';
+import { AddContactModal } from '@/components/AddContactModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+// Régions pour le filtre
+const REGION_FILTERS = [
+  { value: 'all', label: 'Toutes les régions' },
+  { value: 'DACH', label: '🏔️ DACH (DE-AT-CH)' },
+  { value: 'CH', label: '🇨🇭 Suisse' },
+  { value: 'DE', label: '🇩🇪 Allemagne' },
+  { value: 'AT', label: '🇦🇹 Autriche' },
+  { value: 'FR', label: '🇫🇷 France' },
+  { value: 'EU', label: '🇪🇺 Europe' },
+];
 
 interface ContactsListProps {
   contacts: Contact[];
   productName: string;
   productCategory: string | null;
   companyName: string;
-  productId: string; // NOUVEAU: ID du produit
-  companyEmail?: string | null; // Email générique de l'entreprise
-  companyWebsite?: string | null; // Site web de l'entreprise
+  productId: string;
+  companyEmail?: string | null;
+  companyWebsite?: string | null;
+  onContactsUpdate?: (contacts: Contact[]) => void; // Callback pour mise à jour
 }
 
 /**
@@ -64,16 +84,99 @@ function getSourceBadgeVariant(source: Contact['source']): 'default' | 'secondar
 }
 
 /**
+ * Filtre les contacts par région
+ */
+function filterContactsByRegion(contacts: Contact[], region: string): Contact[] {
+  if (region === 'all') return contacts;
+
+  const regionKeywords: Record<string, string[]> = {
+    DACH: ['switzerland', 'schweiz', 'suisse', 'germany', 'deutschland', 'austria', 'österreich', 'dach', 'ch', 'de', 'at'],
+    CH: ['switzerland', 'schweiz', 'suisse', 'zurich', 'zürich', 'geneva', 'genève', 'basel', 'bern', 'ch'],
+    DE: ['germany', 'deutschland', 'berlin', 'munich', 'münchen', 'frankfurt', 'hamburg', 'de'],
+    AT: ['austria', 'österreich', 'vienna', 'wien', 'salzburg', 'at'],
+    FR: ['france', 'paris', 'lyon', 'marseille', 'fr'],
+    EU: ['europe', 'eu', 'emea'],
+  };
+
+  const keywords = regionKeywords[region] || [];
+
+  return contacts.filter((contact) => {
+    const location = (contact.location || '').toLowerCase();
+    const title = (contact.title || '').toLowerCase();
+    return keywords.some((kw) => location.includes(kw) || title.includes(kw));
+  });
+}
+
+/**
  * Composant pour afficher une liste de contacts
  */
-export function ContactsList({ contacts, productName, productCategory, companyName, productId, companyEmail, companyWebsite }: ContactsListProps) {
+export function ContactsList({ contacts, productName, productCategory, companyName, productId, companyEmail, companyWebsite, onContactsUpdate }: ContactsListProps) {
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [addContactOpen, setAddContactOpen] = useState(false);
+  const [regionFilter, setRegionFilter] = useState('all');
+  const [isEnriching, setIsEnriching] = useState(false);
 
   const handleContactClick = (contact: Contact) => {
     setSelectedContact(contact);
     setEmailComposerOpen(true);
   };
+
+  // Ajouter un contact manuellement
+  const handleAddContact = async (contact: Contact) => {
+    const response = await fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entityType: 'product',
+        entityId: productId,
+        contact,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Erreur lors de l\'ajout');
+    }
+
+    const data = await response.json();
+    if (onContactsUpdate) {
+      onContactsUpdate(data.contacts);
+    }
+  };
+
+  // Re-enrichir les contacts via Hunter.io + scraping
+  const handleReEnrich = async () => {
+    setIsEnriching(true);
+    try {
+      const response = await fetch('/api/contacts/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entityType: 'product',
+          entityId: productId,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors de l\'enrichissement');
+      }
+
+      const data = await response.json();
+      if (onContactsUpdate) {
+        onContactsUpdate(data.contacts);
+      }
+    } catch (error) {
+      console.error('Erreur enrichissement:', error);
+      alert(error instanceof Error ? error.message : 'Erreur lors de l\'enrichissement');
+    } finally {
+      setIsEnriching(false);
+    }
+  };
+
+  // Filtrer les contacts par région
+  const filteredContacts = filterContactsByRegion(contacts || [], regionFilter);
 
   // Si aucun contact personnel mais email générique disponible, créer un contact générique
   if (!contacts || contacts.length === 0) {
@@ -167,35 +270,95 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
 
     // Aucun contact ni email générique
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">👥 Contacts décisionnaires</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="mb-3 text-5xl">🕵️</div>
-            <p className="text-sm text-gray-600">
-              Aucun contact trouvé pour ce produit
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              L'IA n'a pas pu extraire de contacts depuis le contenu
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">👥 Contacts décisionnaires</CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleReEnrich}
+                  disabled={isEnriching}
+                >
+                  {isEnriching ? '🔄 Recherche...' : '🔍 Rechercher'}
+                </Button>
+                <Button size="sm" onClick={() => setAddContactOpen(true)}>
+                  + Ajouter
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="mb-3 text-5xl">🕵️</div>
+              <p className="text-sm text-gray-600">
+                Aucun contact trouvé pour ce produit
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Utilisez "Rechercher" pour lancer une recherche automatique ou ajoutez un contact manuellement
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <AddContactModal
+          open={addContactOpen}
+          onClose={() => setAddContactOpen(false)}
+          onAdd={handleAddContact}
+          entityType="product"
+          entityId={productId}
+          entityName={productName}
+        />
+      </>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          👥 Contacts décisionnaires
-          <Badge variant="secondary">{contacts.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {contacts.map((contact, index) => (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              👥 Contacts décisionnaires
+              <Badge variant="secondary">{filteredContacts.length}/{contacts.length}</Badge>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              {/* Filtre par région */}
+              <Select value={regionFilter} onValueChange={setRegionFilter}>
+                <SelectTrigger className="w-[160px] h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {REGION_FILTERS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      {r.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReEnrich}
+                disabled={isEnriching}
+              >
+                {isEnriching ? '🔄' : '🔍'} Enrichir
+              </Button>
+              <Button size="sm" onClick={() => setAddContactOpen(true)}>
+                + Ajouter
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {filteredContacts.length === 0 && contacts.length > 0 && (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              Aucun contact pour la région sélectionnée. <button className="text-blue-600 underline" onClick={() => setRegionFilter('all')}>Voir tous</button>
+            </div>
+          )}
+          {filteredContacts.map((contact, index) => (
           <div
             key={index}
             className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
@@ -284,6 +447,8 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
         ))}
       </CardContent>
 
+      </Card>
+
       {/* Modal de composition d'email */}
       {selectedContact && (
         <EmailComposer
@@ -296,6 +461,16 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
           productId={productId}
         />
       )}
-    </Card>
+
+      {/* Modal d'ajout de contact */}
+      <AddContactModal
+        open={addContactOpen}
+        onClose={() => setAddContactOpen(false)}
+        onAdd={handleAddContact}
+        entityType="product"
+        entityId={productId}
+        entityName={productName}
+      />
+    </>
   );
 }

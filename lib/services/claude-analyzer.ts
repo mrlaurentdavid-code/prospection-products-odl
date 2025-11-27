@@ -89,13 +89,23 @@ INSTRUCTIONS:
    - Regarde dans le footer, section "About Us", "Contact", liens sociaux
 9. Identifie le pays de l'entreprise (code ISO: CH, FR, DE, IT, US, etc.)
 10. Estime le prix public conseillé (MSRP) en EUR et CHF si possible
-11. **PRIORITAIRE: Cherche des contacts responsables des marchés Suisse et Européen** dans le contenu:
-    - Focus ABSOLU sur: "Switzerland Manager", "Swiss Market", "Europe Manager", "Export Manager", "International Sales", "DACH Region"
-    - Privilégie les titres contenant: Swiss, Switzerland, Europe, EU, Export, International, DACH (Germany-Austria-Switzerland)
-    - Recherche des noms de personnes avec leur fonction
-    - Localisation: priorité CH > FR > DE > IT > NL > UK > ES > autres pays européens
-    - Si trouvés: extraire nom, titre/fonction, email, LinkedIn profile URL, localisation, téléphone
-    - Maximum 3 contacts, classés par pertinence pour le marché Suisse/Européen
+11. **PRIORITAIRE: Cherche des contacts responsables des marchés DACH et Européen** dans le contenu:
+    - FOCUS RÉGIONAL ABSOLU - Cherche dans cet ordre de priorité:
+      1. **DACH** (Germany-Austria-Switzerland): "DACH Manager", "DACH Sales", "DACH Region"
+      2. **Suisse**: "Switzerland Manager", "Swiss Market", "CH Sales", "Schweiz", "Suisse"
+      3. **Allemagne**: "Germany Manager", "DACH", "Deutschland", "DE Sales"
+      4. **Europe**: "Europe Manager", "EMEA", "EU Sales", "European Market"
+      5. **International/Export**: "Export Manager", "International Sales", "Business Development"
+    - TITRES À CIBLER (par ordre de pertinence):
+      * Regional Sales Manager, Country Manager, Area Manager
+      * Business Development Manager, Export Manager
+      * Sales Director, Commercial Director
+      * Key Account Manager, Partner Manager
+      * Managing Director, General Manager (pour filiales locales)
+    - LOCALISATION (priorité): CH > DE > AT > FR > NL > BE > IT > UK > ES > autres
+    - Recherche dans: page "Team", "About Us", "Contact", "Leadership", "Distributors"
+    - Si trouvés: extraire nom complet, titre exact, email professionnel, LinkedIn, ville/pays, téléphone
+    - Maximum 5 contacts, classés par pertinence pour le marché DACH/Suisse
 12. Fournis un score de confiance (0.00 à 1.00) basé sur la qualité des données
 
 Retourne ce JSON (rien d'autre):
