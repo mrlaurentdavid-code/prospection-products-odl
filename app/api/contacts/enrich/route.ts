@@ -48,9 +48,10 @@ export async function POST(request: NextRequest) {
     console.log('✅ User authenticated:', user.id);
 
     // Récupérer l'entité avec ses informations
-    const tableName = entityType === 'product' ? 'prospection.products' : 'prospection.brands';
+    const tableName = entityType === 'product' ? 'products' : 'brands';
 
     const { data: entity, error: fetchError } = await supabase
+      .schema('prospection')
       .from(tableName)
       .select('id, contacts, company_website, company_name, parent_company')
       .eq('id', entityId)
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
           companyDomain,
           companyName: entity.company_name || undefined,
           focusRegion: lushaRegion as 'DACH' | 'EU' | 'ALL',
-          limit: 5, // Limiter pour économiser les crédits
+          limit: 1, // UN SEUL contact pour économiser les crédits
         });
 
         lushaCreditsUsed = lushaContacts.length; // 1 crédit par contact révélé
@@ -143,6 +144,7 @@ export async function POST(request: NextRequest) {
 
     // Mettre à jour l'entité avec les contacts enrichis
     const { data: updatedEntity, error: updateError } = await supabase
+      .schema('prospection')
       .from(tableName)
       .update({ contacts: mergedContacts })
       .eq('id', entityId)

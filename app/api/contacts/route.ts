@@ -54,9 +54,10 @@ export async function POST(request: NextRequest) {
     console.log('✅ User authenticated:', user.id);
 
     // Récupérer l'entité et ses contacts actuels
-    const tableName = entityType === 'product' ? 'prospection.products' : 'prospection.brands';
+    const tableName = entityType === 'product' ? 'products' : 'brands';
 
     const { data: entity, error: fetchError } = await supabase
+      .schema('prospection')
       .from(tableName)
       .select('id, contacts')
       .eq('id', entityId)
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Mettre à jour l'entité avec les nouveaux contacts
     const { data: updatedEntity, error: updateError } = await supabase
+      .schema('prospection')
       .from(tableName)
       .update({ contacts: updatedContacts })
       .eq('id', entityId)
@@ -168,9 +170,10 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Récupérer l'entité
-    const tableName = entityType === 'product' ? 'prospection.products' : 'prospection.brands';
+    const tableName = entityType === 'product' ? 'products' : 'brands';
 
     const { data: entity, error: fetchError } = await supabase
+      .schema('prospection')
       .from(tableName)
       .select('id, contacts')
       .eq('id', entityId)
@@ -196,6 +199,7 @@ export async function DELETE(request: NextRequest) {
     const updatedContacts = existingContacts.filter((_, idx) => idx !== contactIndex);
 
     const { data: updatedEntity, error: updateError } = await supabase
+      .schema('prospection')
       .from(tableName)
       .update({ contacts: updatedContacts })
       .eq('id', entityId)

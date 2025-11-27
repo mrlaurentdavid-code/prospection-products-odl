@@ -115,11 +115,48 @@ export function isLushaConfigured(): boolean {
 }
 
 /**
+ * Score un contact Lusha selon sa pertinence pour la prospection DACH
+ * Plus le score est haut, plus le contact est qualifié
+ */
+function scoreLushaContact(contact: LushaContact, focusRegion: 'DACH' | 'EU' | 'ALL'): number {
+  let score = 0;
+  const title = contact.positions?.find(p => p.isCurrent)?.title?.toLowerCase() || '';
+  const countryCode = contact.location?.countryCode?.toUpperCase();
+
+  // Score par pays (priorité DACH)
+  if (countryCode === 'CH') score += 100; // Suisse = top priorité
+  else if (countryCode === 'DE') score += 80; // Allemagne
+  else if (countryCode === 'AT') score += 70; // Autriche
+  else if (focusRegion === 'EU' && EU_COUNTRIES.includes(countryCode || '')) score += 50;
+
+  // Score par titre (mots-clés prioritaires)
+  if (title.includes('dach') || title.includes('switzerland') || title.includes('suisse') || title.includes('schweiz')) score += 50;
+  if (title.includes('export')) score += 40;
+  if (title.includes('country manager') || title.includes('regional manager')) score += 35;
+  if (title.includes('sales director') || title.includes('commercial director')) score += 30;
+  if (title.includes('business development')) score += 25;
+  if (title.includes('sales manager') || title.includes('key account')) score += 20;
+  if (title.includes('managing director') || title.includes('general manager')) score += 15;
+
+  // Bonus si téléphone disponible
+  if (contact.phoneNumbers && contact.phoneNumbers.length > 0) score += 30;
+
+  // Bonus si email professionnel disponible
+  if (contact.emailAddresses?.some(e => e.type === 'work')) score += 20;
+
+  // Bonus si LinkedIn disponible
+  if (contact.socialNetworks?.some(s => s.type === 'linkedin')) score += 10;
+
+  return score;
+}
+
+/**
  * Recherche des contacts qualifiés via Lusha Prospecting API
- * Optimisé pour économiser les crédits en ciblant précisément les profils recherchés.
+ * OPTIMISÉ POUR 1 CRÉDIT: retourne uniquement le contact le plus qualifié
+ * Focus sur les régions DACH/Europe et les rôles Sales/Business Development.
  *
  * @param options - Options de recherche
- * @returns Liste de contacts qualifiés
+ * @returns Liste de contacts qualifiés (max 1 par défaut pour économiser les crédits)
  */
 export async function searchLushaContacts(options: LushaSearchOptions): Promise<Contact[]> {
   const apiKey = process.env.LUSHA_API_KEY;
@@ -136,7 +173,7 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
     focusDepartments = SALES_DEPARTMENTS,
     seniorityLevels = [SENIORITY_LEVELS.MANAGER, SENIORITY_LEVELS.DIRECTOR, SENIORITY_LEVELS.VP, SENIORITY_LEVELS.C_LEVEL],
     jobTitleKeywords = TARGET_JOB_TITLES,
-    limit = 5,
+    limit = 1, // PAR DÉFAUT 1 SEUL CONTACT pour économiser les crédits
   } = options;
 
   // Sélectionner les pays selon la région focus
@@ -146,6 +183,9 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
     console.log(`🔍 Lusha: Searching contacts for ${companyDomain} (region: ${focusRegion})`);
 
     // Construire les filtres pour la requête Prospecting
+    // On demande plus de contacts pour pouvoir scorer et prendre le meilleur
+    const searchLimit = Math.max(limit * 3, 5); // Demander 3x plus pour scorer, min 5
+
     const requestBody: Record<string, unknown> = {
       filters: {
         company: {
@@ -154,10 +194,10 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
         contact: {
           departments: focusDepartments,
           seniority: seniorityLevels,
-          existingDataPoints: ['work_email'], // S'assurer qu'on a un email
+          existingDataPoints: ['work_email', 'phone'], // Email ET téléphone requis
         },
       },
-      limit: limit,
+      limit: searchLimit, // Demander plus pour scorer
       offset: 0,
     };
 
@@ -212,15 +252,42 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
 
     console.log(`✅ Lusha found ${data.contacts?.length || 0} contacts (total: ${data.totalResults})`);
 
+    if (!data.contacts || data.contacts.length === 0) {
+      console.log('📊 Lusha: No contacts found');
+      return [];
+    }
+
+    // Scorer tous les contacts pour trouver le plus qualifié
+    const scoredContacts = data.contacts.map(contact => ({
+      contact,
+      score: scoreLushaContact(contact, focusRegion),
+    }));
+
+    // Trier par score décroissant
+    scoredContacts.sort((a, b) => b.score - a.score);
+
+    console.log(`📊 Lusha scores:`, scoredContacts.slice(0, 5).map(sc => ({
+      name: sc.contact.fullName,
+      title: sc.contact.positions?.find(p => p.isCurrent)?.title,
+      country: sc.contact.location?.countryCode,
+      hasPhone: !!sc.contact.phoneNumbers?.length,
+      score: sc.score,
+    })));
+
+    // Prendre seulement les N meilleurs contacts (par défaut 1)
+    const topContacts = scoredContacts.slice(0, limit);
+
     // Convertir les contacts Lusha en format Contact standard
-    const contacts: Contact[] = (data.contacts || []).map((lushaContact) => {
+    const contacts: Contact[] = topContacts.map(({ contact: lushaContact, score }) => {
       // Trouver l'email professionnel
       const workEmail = lushaContact.emailAddresses?.find(e => e.type === 'work')?.email
         || lushaContact.emailAddresses?.[0]?.email
         || null;
 
-      // Trouver le téléphone
-      const phone = lushaContact.phoneNumbers?.find(p => p.type === 'work' || p.type === 'direct')?.number
+      // Trouver le téléphone (priorité: direct > work > mobile > autre)
+      const phone = lushaContact.phoneNumbers?.find(p => p.type === 'direct')?.number
+        || lushaContact.phoneNumbers?.find(p => p.type === 'work')?.number
+        || lushaContact.phoneNumbers?.find(p => p.type === 'mobile')?.number
         || lushaContact.phoneNumbers?.[0]?.number
         || null;
 
@@ -240,19 +307,11 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
         location = parts.length > 0 ? parts.join(', ') : null;
       }
 
-      // Calculer le score de confiance
-      let confidence = 0.8; // Base pour Lusha (données vérifiées)
+      // Calculer le score de confiance basé sur le score de pertinence
+      // Score max théorique ~200, on normalise sur 0.8-0.99
+      const confidence = Math.min(0.8 + (score / 500), 0.99);
 
-      // Bonus si dans la région DACH
-      if (lushaContact.location?.countryCode && DACH_COUNTRIES.includes(lushaContact.location.countryCode)) {
-        confidence += 0.1;
-      }
-
-      // Bonus si titre contient des mots-clés pertinents
-      const title = currentPosition?.title?.toLowerCase() || '';
-      if (title.includes('sales') || title.includes('export') || title.includes('business development')) {
-        confidence += 0.05;
-      }
+      console.log(`🎯 Selected contact: ${lushaContact.fullName} (${currentPosition?.title}) - Score: ${score}, Phone: ${phone ? 'YES' : 'NO'}`);
 
       return {
         name: lushaContact.fullName || `${lushaContact.firstName} ${lushaContact.lastName}`.trim(),
@@ -262,14 +321,14 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
         location: location,
         phone: phone,
         source: 'lusha' as const,
-        confidence: Math.min(confidence, 1.0),
+        confidence: confidence,
       };
     });
 
     // Filtrer les contacts sans nom ou email
     const validContacts = contacts.filter(c => c.name && c.email);
 
-    console.log(`📊 Lusha: ${validContacts.length} valid contacts after filtering`);
+    console.log(`📊 Lusha: Returning ${validContacts.length} best contact(s) (requested: ${limit})`);
 
     return validContacts;
   } catch (error) {
