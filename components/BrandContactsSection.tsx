@@ -86,6 +86,8 @@ export function BrandContactsSection({
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [regionFilter, setRegionFilter] = useState('all');
   const [isEnriching, setIsEnriching] = useState(false);
+  const [isLushaSearching, setIsLushaSearching] = useState(false);
+  const [lushaCredits, setLushaCredits] = useState<number | null>(null);
 
   const handleContactClick = (contact: BrandContact) => {
     if (!contact.email) {
@@ -149,6 +151,49 @@ export function BrandContactsSection({
     }
   };
 
+  // Recherche avancée Lusha (consomme des crédits)
+  const handleLushaSearch = async () => {
+    if (!confirm('Recherche Lusha (consomme des crédits). Continuer?')) return;
+
+    setIsLushaSearching(true);
+    try {
+      const response = await fetch('/api/contacts/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entityType: 'brand',
+          entityId: brandId,
+          useLusha: true,
+          lushaRegion: regionFilter === 'all' ? 'DACH' : regionFilter,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors de la recherche Lusha');
+      }
+
+      const data = await response.json();
+      if (onContactsUpdate) {
+        onContactsUpdate(data.contacts);
+      }
+
+      // Mettre à jour les crédits restants
+      if (data.lusha?.creditsRemaining !== undefined) {
+        setLushaCredits(data.lusha.creditsRemaining);
+      }
+
+      // Afficher le résultat
+      const lushaCount = data.stats?.lushaFound || 0;
+      alert(`Recherche Lusha terminée: ${lushaCount} contact(s) trouvé(s)${data.lusha?.creditsRemaining !== null ? ` (Crédits restants: ${data.lusha.creditsRemaining})` : ''}`);
+    } catch (error) {
+      console.error('Erreur Lusha:', error);
+      alert(error instanceof Error ? error.message : 'Erreur lors de la recherche Lusha');
+    } finally {
+      setIsLushaSearching(false);
+    }
+  };
+
   // Filtrer les contacts par région
   const filteredContacts = filterContactsByRegion(contacts || [], regionFilter);
 
@@ -161,7 +206,7 @@ export function BrandContactsSection({
               Contacts
               <Badge variant="secondary">{filteredContacts.length}/{contacts.length}</Badge>
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Filtre par région */}
               <Select value={regionFilter} onValueChange={setRegionFilter}>
                 <SelectTrigger className="w-[160px] h-8 text-sm">
@@ -179,9 +224,18 @@ export function BrandContactsSection({
                 size="sm"
                 variant="outline"
                 onClick={handleReEnrich}
-                disabled={isEnriching}
+                disabled={isEnriching || isLushaSearching}
               >
                 {isEnriching ? '🔄' : '🔍'} Enrichir
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleLushaSearch}
+                disabled={isEnriching || isLushaSearching}
+                title={lushaCredits !== null ? `Crédits Lusha: ${lushaCredits}` : 'Recherche avancée Lusha'}
+              >
+                {isLushaSearching ? '🔄' : '🔮'} Lusha
               </Button>
               <Button size="sm" onClick={() => setAddContactOpen(true)}>
                 + Ajouter
@@ -266,7 +320,7 @@ export function BrandContactsSection({
                   )}
                   {contact.source && (
                     <p className="text-xs text-gray-500">
-                      Source: {contact.source === 'hunter_io' ? 'Hunter.io' : contact.source === 'claude_extraction' ? 'Claude AI' : contact.source}
+                      Source: {contact.source === 'hunter_io' ? 'Hunter.io' : contact.source === 'claude_extraction' ? 'Claude AI' : contact.source === 'lusha' ? 'Lusha' : contact.source === 'manual' ? 'Manuel' : contact.source}
                     </p>
                   )}
                 </div>

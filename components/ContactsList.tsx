@@ -70,12 +70,14 @@ function getCountryFlag(location: string | null): string {
 /**
  * Détermine la couleur du badge selon la source
  */
-function getSourceBadgeVariant(source: Contact['source']): 'default' | 'secondary' | 'outline' {
+function getSourceBadgeVariant(source: Contact['source']): 'default' | 'secondary' | 'outline' | 'destructive' {
   switch (source) {
     case 'claude_extraction':
       return 'secondary';
     case 'hunter_io':
       return 'default';
+    case 'lusha':
+      return 'destructive'; // Violet/rose pour Lusha (premium)
     case 'manual':
       return 'outline';
     default:
@@ -116,6 +118,8 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [regionFilter, setRegionFilter] = useState('all');
   const [isEnriching, setIsEnriching] = useState(false);
+  const [isLushaSearching, setIsLushaSearching] = useState(false);
+  const [lushaCredits, setLushaCredits] = useState<number | null>(null);
 
   const handleContactClick = (contact: Contact) => {
     setSelectedContact(contact);
@@ -172,6 +176,49 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
       alert(error instanceof Error ? error.message : 'Erreur lors de l\'enrichissement');
     } finally {
       setIsEnriching(false);
+    }
+  };
+
+  // Recherche avancée Lusha (consomme des crédits)
+  const handleLushaSearch = async () => {
+    if (!confirm('Recherche Lusha (consomme des crédits). Continuer?')) return;
+
+    setIsLushaSearching(true);
+    try {
+      const response = await fetch('/api/contacts/enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entityType: 'product',
+          entityId: productId,
+          useLusha: true,
+          lushaRegion: regionFilter === 'all' ? 'DACH' : regionFilter,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erreur lors de la recherche Lusha');
+      }
+
+      const data = await response.json();
+      if (onContactsUpdate) {
+        onContactsUpdate(data.contacts);
+      }
+
+      // Mettre à jour les crédits restants
+      if (data.lusha?.creditsRemaining !== undefined) {
+        setLushaCredits(data.lusha.creditsRemaining);
+      }
+
+      // Afficher le résultat
+      const lushaCount = data.stats?.lushaFound || 0;
+      alert(`Recherche Lusha terminée: ${lushaCount} contact(s) trouvé(s)${data.lusha?.creditsRemaining !== null ? ` (Crédits restants: ${data.lusha.creditsRemaining})` : ''}`);
+    } catch (error) {
+      console.error('Erreur Lusha:', error);
+      alert(error instanceof Error ? error.message : 'Erreur lors de la recherche Lusha');
+    } finally {
+      setIsLushaSearching(false);
     }
   };
 
@@ -280,9 +327,17 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
                   size="sm"
                   variant="outline"
                   onClick={handleReEnrich}
-                  disabled={isEnriching}
+                  disabled={isEnriching || isLushaSearching}
                 >
                   {isEnriching ? '🔄 Recherche...' : '🔍 Rechercher'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleLushaSearch}
+                  disabled={isEnriching || isLushaSearching}
+                >
+                  {isLushaSearching ? '🔄' : '🔮'} Lusha
                 </Button>
                 <Button size="sm" onClick={() => setAddContactOpen(true)}>
                   + Ajouter
@@ -324,7 +379,7 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
               👥 Contacts décisionnaires
               <Badge variant="secondary">{filteredContacts.length}/{contacts.length}</Badge>
             </CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Filtre par région */}
               <Select value={regionFilter} onValueChange={setRegionFilter}>
                 <SelectTrigger className="w-[160px] h-8 text-sm">
@@ -342,9 +397,18 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
                 size="sm"
                 variant="outline"
                 onClick={handleReEnrich}
-                disabled={isEnriching}
+                disabled={isEnriching || isLushaSearching}
               >
                 {isEnriching ? '🔄' : '🔍'} Enrichir
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleLushaSearch}
+                disabled={isEnriching || isLushaSearching}
+                title={lushaCredits !== null ? `Crédits Lusha: ${lushaCredits}` : 'Recherche avancée Lusha'}
+              >
+                {isLushaSearching ? '🔄' : '🔮'} Lusha
               </Button>
               <Button size="sm" onClick={() => setAddContactOpen(true)}>
                 + Ajouter
@@ -377,6 +441,7 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
               <Badge variant={getSourceBadgeVariant(contact.source)} className="text-xs">
                 {contact.source === 'claude_extraction' && 'IA'}
                 {contact.source === 'hunter_io' && 'Hunter.io'}
+                {contact.source === 'lusha' && 'Lusha'}
                 {contact.source === 'manual' && 'Manuel'}
               </Badge>
             </div>

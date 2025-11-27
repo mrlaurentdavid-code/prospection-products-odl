@@ -2,18 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { findCompanyContacts, mergeAndDeduplicateContacts } from '@/lib/services/hunter-io';
 import { enrichContactsFromWebsite } from '@/lib/services/contact-page-enrichment';
+import { searchLushaContacts, isLushaConfigured, getLushaCreditsRemaining } from '@/lib/services/lusha';
 import { Contact } from '@/lib/utils/validators';
 
 /**
  * POST /api/contacts/enrich
  * Relance la recherche de contacts via Hunter.io + scraping des pages contact
+ * Optionnel: useLusha=true pour recherche avancée Lusha (consomme des crédits)
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { entityType, entityId } = body;
+    const { entityType, entityId, useLusha = false, lushaRegion = 'DACH' } = body;
 
-    console.log('🔍 POST /api/contacts/enrich - Received:', { entityType, entityId });
+    console.log('🔍 POST /api/contacts/enrich - Received:', { entityType, entityId, useLusha, lushaRegion });
 
     // Validation des paramètres
     if (!entityType || !['product', 'brand'].includes(entityType)) {
@@ -100,9 +102,41 @@ export async function POST(request: NextRequest) {
       // Continue without page scraping results
     }
 
-    // Étape 3: Merge et déduplicate
-    console.log('🔄 Step 3: Merging and deduplicating...');
-    const allNewContacts = [...hunterContacts, ...pageContacts];
+    // Étape 3 (optionnelle): Recherche Lusha avancée
+    let lushaContacts: Contact[] = [];
+    let lushaCreditsUsed = 0;
+    let lushaCreditsRemaining: number | null = null;
+
+    if (useLusha && isLushaConfigured()) {
+      try {
+        console.log(`🔮 Step 3: Lusha advanced search (region: ${lushaRegion})...`);
+
+        // Extraire le domaine du site web
+        const websiteUrl = new URL(entity.company_website);
+        const companyDomain = websiteUrl.hostname.replace(/^www\./, '');
+
+        lushaContacts = await searchLushaContacts({
+          companyDomain,
+          companyName: entity.company_name || undefined,
+          focusRegion: lushaRegion as 'DACH' | 'EU' | 'ALL',
+          limit: 5, // Limiter pour économiser les crédits
+        });
+
+        lushaCreditsUsed = lushaContacts.length; // 1 crédit par contact révélé
+        lushaCreditsRemaining = await getLushaCreditsRemaining();
+
+        console.log(`✅ Lusha found ${lushaContacts.length} contacts (credits remaining: ${lushaCreditsRemaining})`);
+      } catch (error) {
+        console.error('⚠️ Lusha search failed:', error);
+        // Continue without Lusha results
+      }
+    } else if (useLusha && !isLushaConfigured()) {
+      console.log('⚠️ Lusha requested but LUSHA_API_KEY not configured');
+    }
+
+    // Étape 4: Merge et déduplicate
+    console.log('🔄 Step 4: Merging and deduplicating...');
+    const allNewContacts = [...hunterContacts, ...pageContacts, ...lushaContacts];
     const mergedContacts = mergeAndDeduplicateContacts(existingContacts, allNewContacts);
 
     console.log(`📊 Results: ${existingContacts.length} existing + ${allNewContacts.length} new = ${mergedContacts.length} final`);
@@ -134,15 +168,54 @@ export async function POST(request: NextRequest) {
         before: existingContacts.length,
         hunterFound: hunterContacts.length,
         pageScrapingFound: pageContacts.length,
+        lushaFound: lushaContacts.length,
         after: mergedContacts.length,
         newAdded: newContactsCount,
       },
+      lusha: useLusha ? {
+        used: true,
+        creditsUsed: lushaCreditsUsed,
+        creditsRemaining: lushaCreditsRemaining,
+      } : { used: false },
       message: newContactsCount > 0
-        ? `${newContactsCount} nouveau(x) contact(s) trouvé(s)`
+        ? `${newContactsCount} nouveau(x) contact(s) trouvé(s)${useLusha ? ` (Lusha: ${lushaContacts.length})` : ''}`
         : 'Aucun nouveau contact trouvé',
     });
   } catch (error) {
     console.error('❌ Error in POST /api/contacts/enrich:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Erreur inconnue' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET /api/contacts/enrich
+ * Retourne l'état des services d'enrichissement disponibles (Hunter.io, Lusha)
+ */
+export async function GET() {
+  try {
+    const lushaConfigured = isLushaConfigured();
+    let lushaCredits: number | null = null;
+
+    if (lushaConfigured) {
+      lushaCredits = await getLushaCreditsRemaining();
+    }
+
+    return NextResponse.json({
+      services: {
+        hunterIo: {
+          available: !!process.env.HUNTER_API_KEY,
+        },
+        lusha: {
+          available: lushaConfigured,
+          creditsRemaining: lushaCredits,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error in GET /api/contacts/enrich:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Erreur inconnue' },
       { status: 500 }

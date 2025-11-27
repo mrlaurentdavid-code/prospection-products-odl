@@ -22,7 +22,7 @@ export const contactSchema = z.object({
   linkedin_url: z.string().url().optional().nullable(),
   location: z.string().nullable(), // Ville, Pays
   phone: z.string().optional().nullable(),
-  source: z.enum(['claude_extraction', 'hunter_io', 'manual']).default('claude_extraction'),
+  source: z.enum(['claude_extraction', 'hunter_io', 'lusha', 'manual']).default('claude_extraction'),
   confidence: z.number().min(0).max(1).default(0.5),
 });
 
