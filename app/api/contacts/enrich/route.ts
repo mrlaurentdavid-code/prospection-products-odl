@@ -47,23 +47,28 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ User authenticated:', user.id);
 
-    // Récupérer l'entité avec ses informations
-    const tableName = entityType === 'product' ? 'products' : 'brands';
+    // Récupérer l'entité avec ses informations via RPC
+    const { data: entityData, error: fetchError } = await supabase
+      .rpc('get_entity_contacts', {
+        p_entity_type: entityType,
+        p_entity_id: entityId,
+      });
 
-    const { data: entity, error: fetchError } = await supabase
-      .schema('prospection')
-      .from(tableName)
-      .select('id, contacts, company_website, company_name, parent_company')
-      .eq('id', entityId)
-      .single();
-
-    if (fetchError || !entity) {
+    if (fetchError || !entityData) {
       console.error('❌ Entity not found:', fetchError);
       return NextResponse.json(
         { error: `${entityType === 'product' ? 'Produit' : 'Marque'} non trouvé(e)` },
         { status: 404 }
       );
     }
+
+    // Extraire les données de la réponse RPC
+    const entity = {
+      contacts: entityData.contacts || [],
+      company_website: entityData.company_website,
+      company_name: entityData.company_name,
+      parent_company: entityData.parent_company,
+    };
 
     // Vérifier qu'on a un site web pour chercher
     if (!entity.company_website) {
@@ -142,14 +147,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`📊 Results: ${existingContacts.length} existing + ${allNewContacts.length} new = ${mergedContacts.length} final`);
 
-    // Mettre à jour l'entité avec les contacts enrichis
-    const { data: updatedEntity, error: updateError } = await supabase
-      .schema('prospection')
-      .from(tableName)
-      .update({ contacts: mergedContacts })
-      .eq('id', entityId)
-      .select('contacts')
-      .single();
+    // Mettre à jour l'entité avec les contacts enrichis via RPC
+    const { data: updatedContacts, error: updateError } = await supabase
+      .rpc('update_entity_contacts', {
+        p_entity_type: entityType,
+        p_entity_id: entityId,
+        p_contacts: mergedContacts,
+      });
 
     if (updateError) {
       console.error('❌ Error updating contacts:', updateError);
@@ -165,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      contacts: updatedEntity.contacts,
+      contacts: updatedContacts,
       stats: {
         before: existingContacts.length,
         hunterFound: hunterContacts.length,

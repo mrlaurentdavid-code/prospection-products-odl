@@ -53,64 +53,42 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ User authenticated:', user.id);
 
-    // Récupérer l'entité et ses contacts actuels
-    const tableName = entityType === 'product' ? 'products' : 'brands';
+    // Ajouter le contact via RPC
+    const { data: updatedContacts, error: rpcError } = await supabase
+      .rpc('add_entity_contact', {
+        p_entity_type: entityType,
+        p_entity_id: entityId,
+        p_contact: validatedContact.data,
+      });
 
-    const { data: entity, error: fetchError } = await supabase
-      .schema('prospection')
-      .from(tableName)
-      .select('id, contacts')
-      .eq('id', entityId)
-      .single();
+    if (rpcError) {
+      console.error('❌ RPC error:', rpcError);
 
-    if (fetchError || !entity) {
-      console.error('❌ Entity not found:', fetchError);
+      // Gérer les erreurs spécifiques
+      if (rpcError.message?.includes('not found')) {
+        return NextResponse.json(
+          { error: `${entityType === 'product' ? 'Produit' : 'Marque'} non trouvé(e)` },
+          { status: 404 }
+        );
+      }
+      if (rpcError.message?.includes('already exists')) {
+        return NextResponse.json(
+          { error: 'Ce contact existe déjà (même email ou nom)' },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
-        { error: `${entityType === 'product' ? 'Produit' : 'Marque'} non trouvé(e)` },
-        { status: 404 }
-      );
-    }
-
-    // Ajouter le nouveau contact à la liste existante
-    const existingContacts = Array.isArray(entity.contacts) ? entity.contacts : [];
-
-    // Vérifier les doublons (par email ou nom)
-    const isDuplicate = existingContacts.some((c: any) =>
-      (c.email && validatedContact.data.email && c.email.toLowerCase() === validatedContact.data.email.toLowerCase()) ||
-      (c.name && validatedContact.data.name && c.name.toLowerCase() === validatedContact.data.name.toLowerCase())
-    );
-
-    if (isDuplicate) {
-      return NextResponse.json(
-        { error: 'Ce contact existe déjà (même email ou nom)' },
-        { status: 409 }
-      );
-    }
-
-    const updatedContacts = [...existingContacts, validatedContact.data];
-
-    // Mettre à jour l'entité avec les nouveaux contacts
-    const { data: updatedEntity, error: updateError } = await supabase
-      .schema('prospection')
-      .from(tableName)
-      .update({ contacts: updatedContacts })
-      .eq('id', entityId)
-      .select('contacts')
-      .single();
-
-    if (updateError) {
-      console.error('❌ Error updating contacts:', updateError);
-      return NextResponse.json(
-        { error: 'Erreur lors de la mise à jour des contacts', details: updateError.message },
+        { error: 'Erreur lors de l\'ajout du contact', details: rpcError.message },
         { status: 500 }
       );
     }
 
-    console.log('✅ Contact added successfully. Total contacts:', updatedContacts.length);
+    console.log('✅ Contact added successfully. Total contacts:', Array.isArray(updatedContacts) ? updatedContacts.length : 0);
 
     return NextResponse.json({
       success: true,
-      contacts: updatedEntity.contacts,
+      contacts: updatedContacts,
       message: 'Contact ajouté avec succès',
     });
   } catch (error) {
@@ -169,55 +147,41 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Récupérer l'entité
-    const tableName = entityType === 'product' ? 'products' : 'brands';
+    // Supprimer le contact via RPC
+    const { data: updatedContacts, error: rpcError } = await supabase
+      .rpc('delete_entity_contact', {
+        p_entity_type: entityType,
+        p_entity_id: entityId,
+        p_contact_index: contactIndex,
+      });
 
-    const { data: entity, error: fetchError } = await supabase
-      .schema('prospection')
-      .from(tableName)
-      .select('id, contacts')
-      .eq('id', entityId)
-      .single();
+    if (rpcError) {
+      console.error('❌ RPC error:', rpcError);
 
-    if (fetchError || !entity) {
+      if (rpcError.message?.includes('not found')) {
+        return NextResponse.json(
+          { error: `${entityType === 'product' ? 'Produit' : 'Marque'} non trouvé(e)` },
+          { status: 404 }
+        );
+      }
+      if (rpcError.message?.includes('out of bounds')) {
+        return NextResponse.json(
+          { error: 'Index de contact hors limites' },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
-        { error: `${entityType === 'product' ? 'Produit' : 'Marque'} non trouvé(e)` },
-        { status: 404 }
-      );
-    }
-
-    const existingContacts = Array.isArray(entity.contacts) ? entity.contacts : [];
-
-    if (contactIndex >= existingContacts.length) {
-      return NextResponse.json(
-        { error: 'Index de contact hors limites' },
-        { status: 400 }
-      );
-    }
-
-    // Supprimer le contact
-    const updatedContacts = existingContacts.filter((_, idx) => idx !== contactIndex);
-
-    const { data: updatedEntity, error: updateError } = await supabase
-      .schema('prospection')
-      .from(tableName)
-      .update({ contacts: updatedContacts })
-      .eq('id', entityId)
-      .select('contacts')
-      .single();
-
-    if (updateError) {
-      return NextResponse.json(
-        { error: 'Erreur lors de la suppression', details: updateError.message },
+        { error: 'Erreur lors de la suppression', details: rpcError.message },
         { status: 500 }
       );
     }
 
-    console.log('✅ Contact deleted. Remaining contacts:', updatedContacts.length);
+    console.log('✅ Contact deleted. Remaining contacts:', Array.isArray(updatedContacts) ? updatedContacts.length : 0);
 
     return NextResponse.json({
       success: true,
-      contacts: updatedEntity.contacts,
+      contacts: updatedContacts,
       message: 'Contact supprimé',
     });
   } catch (error) {
