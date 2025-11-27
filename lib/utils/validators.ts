@@ -17,10 +17,10 @@ export type JinaScrapedData = z.infer<typeof jinaScrapedDataSchema>;
 // Validator pour un contact
 export const contactSchema = z.object({
   name: z.string().nullable(), // Nullable car Claude peut retourner null si pas de contact trouvé
-  title: z.string().nullable(), // Poste (Sales Manager, Business Dev, etc.)
+  title: z.string().optional().nullable(), // Poste (Sales Manager, Business Dev, etc.)
   email: z.string().email().optional().nullable(),
   linkedin_url: z.string().url().optional().nullable(),
-  location: z.string().nullable(), // Ville, Pays
+  location: z.string().optional().nullable(), // Ville, Pays
   phone: z.string().optional().nullable(),
   source: z.enum(['claude_extraction', 'hunter_io', 'lusha', 'manual']).default('claude_extraction'),
   confidence: z.number().min(0).max(1).default(0.5),

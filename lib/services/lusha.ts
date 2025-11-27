@@ -138,14 +138,11 @@ function scoreLushaContact(contact: LushaContact, focusRegion: 'DACH' | 'EU' | '
   if (title.includes('sales manager') || title.includes('key account')) score += 20;
   if (title.includes('managing director') || title.includes('general manager')) score += 15;
 
-  // Bonus si téléphone disponible
-  if (contact.phoneNumbers && contact.phoneNumbers.length > 0) score += 30;
+  // Bonus si email professionnel disponible (critère principal)
+  if (contact.emailAddresses?.some(e => e.type === 'work')) score += 30;
 
-  // Bonus si email professionnel disponible
-  if (contact.emailAddresses?.some(e => e.type === 'work')) score += 20;
-
-  // Bonus si LinkedIn disponible
-  if (contact.socialNetworks?.some(s => s.type === 'linkedin')) score += 10;
+  // Bonus si LinkedIn disponible (info gratuite, utile pour prospection)
+  if (contact.socialNetworks?.some(s => s.type === 'linkedin')) score += 15;
 
   return score;
 }
@@ -194,11 +191,14 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
         contact: {
           departments: focusDepartments,
           seniority: seniorityLevels,
-          existingDataPoints: ['work_email', 'phone'], // Email ET téléphone requis
+          existingDataPoints: ['work_email'], // SEULEMENT email pour 1 crédit
         },
       },
       limit: searchLimit, // Demander plus pour scorer
       offset: 0,
+      // IMPORTANT: Ne pas demander de révéler les téléphones pour économiser les crédits
+      // Lusha facture par datapoint révélé
+      reveal: ['work_email'], // Révéler SEULEMENT l'email = 1 crédit
     };
 
     // Ajouter le filtre de pays si spécifié
@@ -266,11 +266,12 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
     // Trier par score décroissant
     scoredContacts.sort((a, b) => b.score - a.score);
 
-    console.log(`📊 Lusha scores:`, scoredContacts.slice(0, 5).map(sc => ({
+    console.log(`📊 Lusha scores (top 5):`, scoredContacts.slice(0, 5).map(sc => ({
       name: sc.contact.fullName,
       title: sc.contact.positions?.find(p => p.isCurrent)?.title,
       country: sc.contact.location?.countryCode,
-      hasPhone: !!sc.contact.phoneNumbers?.length,
+      hasEmail: !!sc.contact.emailAddresses?.length,
+      hasLinkedIn: !!sc.contact.socialNetworks?.some(s => s.type === 'linkedin'),
       score: sc.score,
     })));
 
@@ -284,12 +285,9 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
         || lushaContact.emailAddresses?.[0]?.email
         || null;
 
-      // Trouver le téléphone (priorité: direct > work > mobile > autre)
-      const phone = lushaContact.phoneNumbers?.find(p => p.type === 'direct')?.number
-        || lushaContact.phoneNumbers?.find(p => p.type === 'work')?.number
-        || lushaContact.phoneNumbers?.find(p => p.type === 'mobile')?.number
-        || lushaContact.phoneNumbers?.[0]?.number
-        || null;
+      // NOTE: On ne demande PAS le téléphone pour économiser les crédits (1 crédit = 1 datapoint)
+      // Le téléphone peut être récupéré manuellement via LinkedIn ou le site web
+      const phone = null;
 
       // Trouver le profil LinkedIn
       const linkedinUrl = lushaContact.socialNetworks?.find(s => s.type === 'linkedin')?.url || null;
@@ -311,7 +309,7 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
       // Score max théorique ~200, on normalise sur 0.8-0.99
       const confidence = Math.min(0.8 + (score / 500), 0.99);
 
-      console.log(`🎯 Selected contact: ${lushaContact.fullName} (${currentPosition?.title}) - Score: ${score}, Phone: ${phone ? 'YES' : 'NO'}`);
+      console.log(`🎯 Selected contact: ${lushaContact.fullName} (${currentPosition?.title}) - Score: ${score}, Email: ${workEmail ? 'YES' : 'NO'}, LinkedIn: ${linkedinUrl ? 'YES' : 'NO'}`);
 
       return {
         name: lushaContact.fullName || `${lushaContact.firstName} ${lushaContact.lastName}`.trim(),

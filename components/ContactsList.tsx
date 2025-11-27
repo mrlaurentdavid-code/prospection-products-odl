@@ -40,7 +40,7 @@ interface ContactsListProps {
 /**
  * Détermine le flag emoji depuis le code pays
  */
-function getCountryFlag(location: string | null): string {
+function getCountryFlag(location: string | null | undefined): string {
   if (!location) return '🌍';
 
   const countryFlags: Record<string, string> = {
