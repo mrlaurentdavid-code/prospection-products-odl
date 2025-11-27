@@ -211,17 +211,15 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
         </CardContent>
       </Card>
 
-      {/* Contacts */}
-      {brand.contacts && brand.contacts.length > 0 && (
-        <BrandContactsSection
-          contacts={brand.contacts}
-          brandId={brand.id}
-          brandName={brand.name}
-          brandDescription={brand.description}
-          companyName={brand.company_name}
-          categories={brand.categories || []}
-        />
-      )}
+      {/* Contacts - Toujours affiché pour permettre l'ajout manuel */}
+      <BrandContactsSection
+        contacts={brand.contacts || []}
+        brandId={brand.id}
+        brandName={brand.name}
+        brandDescription={brand.description}
+        companyName={brand.company_name}
+        categories={brand.categories || []}
+      />
 
       {/* Brand Images */}
       {brand.brand_images && brand.brand_images.length > 0 && (
