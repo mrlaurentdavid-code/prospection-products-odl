@@ -13,7 +13,6 @@ const LUSHA_API_BASE = 'https://api.lusha.com';
 
 /**
  * Codes de séniorité Lusha
- * Source: https://docs.lusha.com/apis/openapi/contact-filters
  */
 const SENIORITY_LEVELS = {
   ENTRY: '1',
@@ -37,64 +36,42 @@ const SALES_DEPARTMENTS = [
 ];
 
 /**
- * Codes pays DACH et Europe pour les filtres Lusha
+ * Codes pays DACH et Europe
  */
 const DACH_COUNTRIES = ['CH', 'DE', 'AT'];
 const EU_COUNTRIES = ['CH', 'DE', 'AT', 'FR', 'NL', 'BE', 'IT', 'ES', 'UK', 'PL', 'SE', 'DK', 'NO', 'FI'];
 
 /**
- * Titres de postes à cibler pour la prospection
+ * Interface pour les résultats de recherche Lusha
  */
-const TARGET_JOB_TITLES = [
-  'Sales Manager',
-  'Business Development',
-  'Export Manager',
-  'Country Manager',
-  'Regional Manager',
-  'Key Account Manager',
-  'Commercial Director',
-  'Sales Director',
-  'Managing Director',
-  'General Manager',
-  'VP Sales',
-  'Head of Sales',
-  'Partner Manager',
-  'Area Manager',
-];
-
-interface LushaContact {
+interface LushaSearchResult {
+  contactId: string;
   firstName: string;
   lastName: string;
   fullName: string;
-  emailAddresses?: Array<{
-    email: string;
-    type: string;
-  }>;
-  phoneNumbers?: Array<{
-    number: string;
-    type: string;
-  }>;
-  positions?: Array<{
-    title: string;
-    companyName: string;
-    isCurrent: boolean;
-  }>;
-  socialNetworks?: Array<{
-    url: string;
-    type: string;
-  }>;
-  location?: {
-    city?: string;
-    state?: string;
-    country?: string;
-    countryCode?: string;
-  };
+  jobTitle?: string;
+  company?: string;
+  companyDomain?: string;
+  country?: string;
+  city?: string;
+  linkedinUrl?: string;
 }
 
-interface LushaProspectingResponse {
-  contacts: LushaContact[];
-  totalResults: number;
-  hasMore: boolean;
+/**
+ * Interface pour les contacts enrichis Lusha
+ */
+interface LushaEnrichedContact {
+  contactId: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  jobTitle?: string;
+  company?: string;
+  emails?: Array<{ email: string; type: string }>;
+  phones?: Array<{ number: string; type: string }>;
+  linkedinUrl?: string;
+  country?: string;
+  city?: string;
 }
 
 interface LushaSearchOptions {
@@ -103,7 +80,6 @@ interface LushaSearchOptions {
   focusRegion?: 'DACH' | 'EU' | 'ALL';
   focusDepartments?: string[];
   seniorityLevels?: string[];
-  jobTitleKeywords?: string[];
   limit?: number;
 }
 
@@ -115,45 +91,134 @@ export function isLushaConfigured(): boolean {
 }
 
 /**
- * Score un contact Lusha selon sa pertinence pour la prospection DACH
- * Plus le score est haut, plus le contact est qualifié
+ * Score un contact de recherche Lusha selon sa pertinence
  */
-function scoreLushaContact(contact: LushaContact, focusRegion: 'DACH' | 'EU' | 'ALL'): number {
+function scoreLushaSearchResult(contact: LushaSearchResult, focusRegion: 'DACH' | 'EU' | 'ALL'): number {
   let score = 0;
-  const title = contact.positions?.find(p => p.isCurrent)?.title?.toLowerCase() || '';
-  const countryCode = contact.location?.countryCode?.toUpperCase();
+  const title = (contact.jobTitle || '').toLowerCase();
+  const country = (contact.country || '').toUpperCase();
 
   // Score par pays (priorité DACH)
-  if (countryCode === 'CH') score += 100; // Suisse = top priorité
-  else if (countryCode === 'DE') score += 80; // Allemagne
-  else if (countryCode === 'AT') score += 70; // Autriche
-  else if (focusRegion === 'EU' && EU_COUNTRIES.includes(countryCode || '')) score += 50;
+  if (country === 'CH' || country === 'SWITZERLAND') score += 100;
+  else if (country === 'DE' || country === 'GERMANY') score += 80;
+  else if (country === 'AT' || country === 'AUSTRIA') score += 70;
+  else if (focusRegion === 'EU' && EU_COUNTRIES.some(c => country.includes(c))) score += 50;
 
-  // Score par titre (mots-clés prioritaires)
-  if (title.includes('dach') || title.includes('switzerland') || title.includes('suisse') || title.includes('schweiz')) score += 50;
+  // Score par titre
+  if (title.includes('dach') || title.includes('switzerland') || title.includes('suisse')) score += 50;
   if (title.includes('export')) score += 40;
   if (title.includes('country manager') || title.includes('regional manager')) score += 35;
   if (title.includes('sales director') || title.includes('commercial director')) score += 30;
   if (title.includes('business development')) score += 25;
   if (title.includes('sales manager') || title.includes('key account')) score += 20;
-  if (title.includes('managing director') || title.includes('general manager')) score += 15;
 
-  // Bonus si email professionnel disponible (critère principal)
-  if (contact.emailAddresses?.some(e => e.type === 'work')) score += 30;
-
-  // Bonus si LinkedIn disponible (info gratuite, utile pour prospection)
-  if (contact.socialNetworks?.some(s => s.type === 'linkedin')) score += 15;
+  // Bonus si LinkedIn disponible
+  if (contact.linkedinUrl) score += 15;
 
   return score;
 }
 
 /**
+ * Recherche simplifiée - utilisée comme fallback
+ */
+async function searchLushaContactsSimplified(options: LushaSearchOptions): Promise<Contact[]> {
+  const apiKey = process.env.LUSHA_API_KEY;
+  if (!apiKey) return [];
+
+  const { companyDomain, companyName, limit = 1 } = options;
+
+  try {
+    console.log(`🔄 Lusha Simplified: Searching for ${companyName || companyDomain}`);
+
+    // Format minimal pour la recherche
+    const searchBody = {
+      pages: { page: 0, size: 10 },
+      filters: {
+        companies: {
+          include: {
+            domains: [companyDomain],
+          },
+        },
+      },
+      includePartialContacts: true,
+    };
+
+    const response = await fetch(`${LUSHA_API_BASE}/prospecting/contact/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api_key': apiKey,
+      },
+      body: JSON.stringify(searchBody),
+    });
+
+    if (!response.ok) {
+      console.error(`❌ Lusha Simplified search failed (${response.status})`);
+      return [];
+    }
+
+    const data = await response.json();
+    console.log(`✅ Lusha Simplified found ${data.data?.length || 0} contacts`);
+
+    if (!data.data || data.data.length === 0) {
+      return [];
+    }
+
+    // Prendre le premier contact et l'enrichir
+    const contactIds = data.data.slice(0, limit).map((c: LushaSearchResult) => c.contactId);
+
+    // Enrichir
+    const enrichResponse = await fetch(`${LUSHA_API_BASE}/prospecting/contact/enrich`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api_key': apiKey,
+      },
+      body: JSON.stringify({
+        contactIds,
+        dataPoints: ['work_email'],
+      }),
+    });
+
+    if (!enrichResponse.ok) {
+      console.error(`❌ Lusha Simplified enrich failed (${enrichResponse.status})`);
+      // Retourner les infos de base sans email
+      return data.data.slice(0, limit).map((c: LushaSearchResult) => ({
+        name: c.fullName,
+        title: c.jobTitle || null,
+        email: null,
+        linkedin_url: c.linkedinUrl || null,
+        location: c.city && c.country ? `${c.city}, ${c.country}` : c.country || null,
+        phone: null,
+        source: 'lusha' as const,
+        confidence: 0.7,
+      }));
+    }
+
+    const enrichData = await enrichResponse.json();
+    console.log(`✅ Lusha Simplified enriched ${enrichData.data?.length || 0} contacts`);
+
+    return (enrichData.data || []).map((c: LushaEnrichedContact) => ({
+      name: c.fullName,
+      title: c.jobTitle || null,
+      email: c.emails?.find(e => e.type === 'work')?.email || c.emails?.[0]?.email || null,
+      linkedin_url: c.linkedinUrl || null,
+      location: c.city && c.country ? `${c.city}, ${c.country}` : c.country || null,
+      phone: null,
+      source: 'lusha' as const,
+      confidence: 0.85,
+    }));
+  } catch (error) {
+    console.error('❌ Lusha Simplified error:', error);
+    return [];
+  }
+}
+
+/**
  * Recherche des contacts qualifiés via Lusha Prospecting API
- * OPTIMISÉ POUR 1 CRÉDIT: retourne uniquement le contact le plus qualifié
- * Focus sur les régions DACH/Europe et les rôles Sales/Business Development.
- *
- * @param options - Options de recherche
- * @returns Liste de contacts qualifiés (max 1 par défaut pour économiser les crédits)
+ * Process en 2 étapes:
+ * 1. Search - Trouver les contacts correspondants (gratuit)
+ * 2. Enrich - Révéler les données (1 crédit par contact)
  */
 export async function searchLushaContacts(options: LushaSearchOptions): Promise<Contact[]> {
   const apiKey = process.env.LUSHA_API_KEY;
@@ -169,166 +234,162 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
     focusRegion = 'DACH',
     focusDepartments = SALES_DEPARTMENTS,
     seniorityLevels = [SENIORITY_LEVELS.MANAGER, SENIORITY_LEVELS.DIRECTOR, SENIORITY_LEVELS.VP, SENIORITY_LEVELS.C_LEVEL],
-    jobTitleKeywords = TARGET_JOB_TITLES,
-    limit = 1, // PAR DÉFAUT 1 SEUL CONTACT pour économiser les crédits
+    limit = 1,
   } = options;
 
-  // Sélectionner les pays selon la région focus
   const targetCountries = focusRegion === 'DACH' ? DACH_COUNTRIES : focusRegion === 'EU' ? EU_COUNTRIES : [];
 
   try {
-    console.log(`🔍 Lusha: Searching contacts for ${companyDomain} (region: ${focusRegion})`);
+    console.log(`🔍 Lusha: Searching contacts for ${companyDomain} (region: ${focusRegion}, company: ${companyName || 'N/A'})`);
 
-    // Construire les filtres pour la requête Prospecting
-    // On demande plus de contacts pour pouvoir scorer et prendre le meilleur
-    const searchLimit = Math.max(limit * 3, 5); // Demander 3x plus pour scorer, min 5
-
-    const requestBody: Record<string, unknown> = {
+    // ÉTAPE 1: Recherche de contacts
+    const searchBody: Record<string, unknown> = {
+      pages: {
+        page: 0,
+        size: Math.max(limit * 5, 10),
+      },
       filters: {
-        company: {
-          domains: [companyDomain],
+        companies: {
+          include: {
+            ...(companyName ? { names: [companyName] } : {}),
+            domains: [companyDomain],
+          },
         },
-        contact: {
-          departments: focusDepartments,
-          seniority: seniorityLevels,
-          existingDataPoints: ['work_email'], // SEULEMENT email pour 1 crédit
+        contacts: {
+          include: {
+            departments: focusDepartments,
+            seniority: seniorityLevels,
+            existing_data_points: ['work_email'],
+          },
         },
       },
-      limit: searchLimit, // Demander plus pour scorer
-      offset: 0,
-      // IMPORTANT: Ne pas demander de révéler les téléphones pour économiser les crédits
-      // Lusha facture par datapoint révélé
-      reveal: ['work_email'], // Révéler SEULEMENT l'email = 1 crédit
+      includePartialContacts: true,
     };
 
-    // Ajouter le filtre de pays si spécifié
+    // Ajouter le filtre de localisation
     if (targetCountries.length > 0) {
-      (requestBody.filters as Record<string, unknown>).contact = {
-        ...(requestBody.filters as Record<string, unknown>).contact as Record<string, unknown>,
-        locations: {
-          countries: targetCountries,
-        },
-      };
+      const filters = searchBody.filters as Record<string, Record<string, Record<string, unknown>>>;
+      filters.contacts.include.locations = targetCountries.map(country => ({ country }));
     }
 
-    // Ajouter les mots-clés de titre si spécifiés
-    if (jobTitleKeywords.length > 0) {
-      (requestBody.filters as Record<string, unknown>).contact = {
-        ...(requestBody.filters as Record<string, unknown>).contact as Record<string, unknown>,
-        jobTitleKeywords: jobTitleKeywords.slice(0, 5), // Limiter à 5 mots-clés
-      };
-    }
+    console.log('📤 Lusha SEARCH request:', JSON.stringify(searchBody, null, 2));
 
-    console.log('📤 Lusha request filters:', JSON.stringify(requestBody.filters, null, 2));
-
-    const response = await fetch(`${LUSHA_API_BASE}/prospecting/contacts`, {
+    const searchResponse = await fetch(`${LUSHA_API_BASE}/prospecting/contact/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'api_key': apiKey,
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(searchBody),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Lusha API error (${response.status}):`, errorText);
+    if (!searchResponse.ok) {
+      const errorText = await searchResponse.text();
+      console.error(`❌ Lusha Search API error (${searchResponse.status}):`, errorText);
 
-      // Gérer les erreurs spécifiques
-      if (response.status === 401) {
-        throw new Error('Lusha API key invalid or expired');
+      if (searchResponse.status === 400) {
+        console.log('🔄 Trying simplified search format...');
+        return await searchLushaContactsSimplified(options);
       }
-      if (response.status === 429) {
-        throw new Error('Lusha API rate limit exceeded');
-      }
-      if (response.status === 402) {
-        throw new Error('Lusha credits exhausted');
-      }
+
+      if (searchResponse.status === 401) throw new Error('Lusha API key invalid');
+      if (searchResponse.status === 429) throw new Error('Lusha API rate limit exceeded');
+      if (searchResponse.status === 402) throw new Error('Lusha credits exhausted');
 
       return [];
     }
 
-    const data: LushaProspectingResponse = await response.json();
+    const searchData = await searchResponse.json();
+    console.log(`✅ Lusha Search found ${searchData.data?.length || 0} contacts (total: ${searchData.totalResults || 0})`);
 
-    console.log(`✅ Lusha found ${data.contacts?.length || 0} contacts (total: ${data.totalResults})`);
-
-    if (!data.contacts || data.contacts.length === 0) {
-      console.log('📊 Lusha: No contacts found');
-      return [];
+    if (!searchData.data || searchData.data.length === 0) {
+      console.log('📊 Lusha: No contacts found, trying simplified search...');
+      return await searchLushaContactsSimplified(options);
     }
 
-    // Scorer tous les contacts pour trouver le plus qualifié
-    const scoredContacts = data.contacts.map(contact => ({
+    // Scorer les contacts
+    const scoredContacts = searchData.data.map((contact: LushaSearchResult) => ({
       contact,
-      score: scoreLushaContact(contact, focusRegion),
+      score: scoreLushaSearchResult(contact, focusRegion),
     }));
 
-    // Trier par score décroissant
-    scoredContacts.sort((a, b) => b.score - a.score);
+    scoredContacts.sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
-    console.log(`📊 Lusha scores (top 5):`, scoredContacts.slice(0, 5).map(sc => ({
+    console.log(`📊 Lusha scores (top 3):`, scoredContacts.slice(0, 3).map((sc: { contact: LushaSearchResult; score: number }) => ({
       name: sc.contact.fullName,
-      title: sc.contact.positions?.find(p => p.isCurrent)?.title,
-      country: sc.contact.location?.countryCode,
-      hasEmail: !!sc.contact.emailAddresses?.length,
-      hasLinkedIn: !!sc.contact.socialNetworks?.some(s => s.type === 'linkedin'),
+      title: sc.contact.jobTitle,
+      country: sc.contact.country,
       score: sc.score,
     })));
 
-    // Prendre seulement les N meilleurs contacts (par défaut 1)
+    // Prendre les meilleurs pour l'enrichissement
     const topContacts = scoredContacts.slice(0, limit);
+    const contactIds = topContacts.map((sc: { contact: LushaSearchResult }) => sc.contact.contactId);
 
-    // Convertir les contacts Lusha en format Contact standard
-    const contacts: Contact[] = topContacts.map(({ contact: lushaContact, score }) => {
-      // Trouver l'email professionnel
-      const workEmail = lushaContact.emailAddresses?.find(e => e.type === 'work')?.email
-        || lushaContact.emailAddresses?.[0]?.email
-        || null;
+    if (contactIds.length === 0) {
+      return [];
+    }
 
-      // NOTE: On ne demande PAS le téléphone pour économiser les crédits (1 crédit = 1 datapoint)
-      // Le téléphone peut être récupéré manuellement via LinkedIn ou le site web
-      const phone = null;
+    // ÉTAPE 2: Enrichir les contacts (consomme les crédits)
+    console.log(`🔄 Lusha: Enriching ${contactIds.length} contact(s)...`);
 
-      // Trouver le profil LinkedIn
-      const linkedinUrl = lushaContact.socialNetworks?.find(s => s.type === 'linkedin')?.url || null;
+    const enrichResponse = await fetch(`${LUSHA_API_BASE}/prospecting/contact/enrich`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api_key': apiKey,
+      },
+      body: JSON.stringify({
+        contactIds,
+        dataPoints: ['work_email'],
+      }),
+    });
 
-      // Trouver le poste actuel
-      const currentPosition = lushaContact.positions?.find(p => p.isCurrent);
+    if (!enrichResponse.ok) {
+      const errorText = await enrichResponse.text();
+      console.error(`❌ Lusha Enrich API error (${enrichResponse.status}):`, errorText);
 
-      // Construire la localisation
-      let location: string | null = null;
-      if (lushaContact.location) {
-        const parts = [
-          lushaContact.location.city,
-          lushaContact.location.country,
-        ].filter(Boolean);
-        location = parts.length > 0 ? parts.join(', ') : null;
-      }
+      // Retourner les infos de base sans email
+      return topContacts.map(({ contact, score }: { contact: LushaSearchResult; score: number }) => ({
+        name: contact.fullName,
+        title: contact.jobTitle || null,
+        email: null,
+        linkedin_url: contact.linkedinUrl || null,
+        location: contact.city && contact.country ? `${contact.city}, ${contact.country}` : contact.country || null,
+        phone: null,
+        source: 'lusha' as const,
+        confidence: Math.min(0.6 + (score / 500), 0.8),
+      }));
+    }
 
-      // Calculer le score de confiance basé sur le score de pertinence
-      // Score max théorique ~200, on normalise sur 0.8-0.99
-      const confidence = Math.min(0.8 + (score / 500), 0.99);
+    const enrichData = await enrichResponse.json();
+    console.log(`✅ Lusha Enrich returned ${enrichData.data?.length || 0} contacts`);
 
-      console.log(`🎯 Selected contact: ${lushaContact.fullName} (${currentPosition?.title}) - Score: ${score}, Email: ${workEmail ? 'YES' : 'NO'}, LinkedIn: ${linkedinUrl ? 'YES' : 'NO'}`);
+    // Convertir en format Contact
+    const contacts: Contact[] = (enrichData.data || []).map((c: LushaEnrichedContact) => {
+      const workEmail = c.emails?.find(e => e.type === 'work')?.email || c.emails?.[0]?.email || null;
+      const location = c.city && c.country ? `${c.city}, ${c.country}` : c.country || null;
+
+      console.log(`🎯 Enriched contact: ${c.fullName} (${c.jobTitle}) - Email: ${workEmail ? 'YES' : 'NO'}`);
 
       return {
-        name: lushaContact.fullName || `${lushaContact.firstName} ${lushaContact.lastName}`.trim(),
-        title: currentPosition?.title || null,
+        name: c.fullName,
+        title: c.jobTitle || null,
         email: workEmail,
-        linkedin_url: linkedinUrl,
-        location: location,
-        phone: phone,
+        linkedin_url: c.linkedinUrl || null,
+        location,
+        phone: null,
         source: 'lusha' as const,
-        confidence: confidence,
+        confidence: workEmail ? 0.9 : 0.7,
       };
     });
 
-    // Filtrer les contacts sans nom ou email
-    const validContacts = contacts.filter(c => c.name && c.email);
+    // Filtrer les contacts sans nom
+    const validContacts = contacts.filter(c => c.name);
 
-    console.log(`📊 Lusha: Returning ${validContacts.length} best contact(s) (requested: ${limit})`);
-
+    console.log(`📊 Lusha: Returning ${validContacts.length} contact(s)`);
     return validContacts;
+
   } catch (error) {
     console.error('❌ Lusha search error:', error);
     throw error;
@@ -337,11 +398,6 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
 
 /**
  * Enrichit un contact existant via Lusha Person API
- * Utile pour compléter les infos d'un contact trouvé ailleurs.
- *
- * @param email - Email du contact
- * @param linkedinUrl - URL LinkedIn du contact (optionnel)
- * @returns Contact enrichi ou null
  */
 export async function enrichContactWithLusha(
   email?: string | null,
@@ -363,18 +419,9 @@ export async function enrichContactWithLusha(
     console.log(`🔍 Lusha: Enriching contact (email: ${email || 'N/A'}, linkedin: ${linkedinUrl ? 'yes' : 'no'})`);
 
     const requestBody: Record<string, unknown> = {};
-
-    if (email) {
-      requestBody.email = email;
-    }
-    if (linkedinUrl) {
-      requestBody.linkedInUrl = linkedinUrl;
-    }
-
-    // Option pour rafraîchir les infos de poste
-    requestBody.metadata = {
-      refreshJobInfo: true,
-    };
+    if (email) requestBody.email = email;
+    if (linkedinUrl) requestBody.linkedInUrl = linkedinUrl;
+    requestBody.metadata = { refreshJobInfo: true };
 
     const response = await fetch(`${LUSHA_API_BASE}/v2/person`, {
       method: 'POST',
@@ -391,23 +438,22 @@ export async function enrichContactWithLusha(
       return null;
     }
 
-    const data: LushaContact = await response.json();
+    const data = await response.json();
 
-    // Convertir en format Contact
-    const workEmail = data.emailAddresses?.find(e => e.type === 'work')?.email
+    const workEmail = data.emailAddresses?.find((e: { type: string }) => e.type === 'work')?.email
       || data.emailAddresses?.[0]?.email
       || email
       || null;
 
-    const phone = data.phoneNumbers?.find(p => p.type === 'work' || p.type === 'direct')?.number
+    const phone = data.phoneNumbers?.find((p: { type: string }) => p.type === 'work' || p.type === 'direct')?.number
       || data.phoneNumbers?.[0]?.number
       || null;
 
-    const linkedin = data.socialNetworks?.find(s => s.type === 'linkedin')?.url
+    const linkedin = data.socialNetworks?.find((s: { type: string }) => s.type === 'linkedin')?.url
       || linkedinUrl
       || null;
 
-    const currentPosition = data.positions?.find(p => p.isCurrent);
+    const currentPosition = data.positions?.find((p: { isCurrent: boolean }) => p.isCurrent);
 
     let location: string | null = null;
     if (data.location) {
@@ -422,10 +468,10 @@ export async function enrichContactWithLusha(
       title: currentPosition?.title || null,
       email: workEmail,
       linkedin_url: linkedin,
-      location: location,
-      phone: phone,
+      location,
+      phone,
       source: 'lusha' as const,
-      confidence: 0.9, // Haute confiance pour données Lusha enrichies
+      confidence: 0.9,
     };
   } catch (error) {
     console.error('❌ Lusha enrichment error:', error);
@@ -438,22 +484,15 @@ export async function enrichContactWithLusha(
  */
 export async function getLushaCreditsRemaining(): Promise<number | null> {
   const apiKey = process.env.LUSHA_API_KEY;
-
-  if (!apiKey) {
-    return null;
-  }
+  if (!apiKey) return null;
 
   try {
     const response = await fetch(`${LUSHA_API_BASE}/credits`, {
       method: 'GET',
-      headers: {
-        'api_key': apiKey,
-      },
+      headers: { 'api_key': apiKey },
     });
 
-    if (!response.ok) {
-      return null;
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
     return data.remaining || null;

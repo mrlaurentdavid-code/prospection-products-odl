@@ -124,8 +124,15 @@ export function AddContactModal({
         location = city;
       }
 
+      // Nettoyer le nom (enlever les préfixes parasites du copier-coller)
+      let cleanName = name.trim();
+      // Enlever "Select row" ou autres préfixes de tableau
+      cleanName = cleanName.replace(/^(Select row|Select|Sélectionner)\s*/i, '');
+      // Enlever les espaces multiples
+      cleanName = cleanName.replace(/\s+/g, ' ').trim();
+
       const contact: Contact = {
-        name: name.trim(),
+        name: cleanName,
         title: title.trim() || null,
         email: email.trim() || null,
         linkedin_url: linkedinUrl.trim() || null,
