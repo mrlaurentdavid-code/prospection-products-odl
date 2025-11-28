@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProductImage } from "@/components/ProductImage";
-import { ContactsList } from "@/components/ContactsList";
+import { ProductContactsClient } from "@/components/ProductContactsClient";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ProductHistory } from "@/components/ProductHistory";
 import { ImageGalleryManager } from "@/components/ImageGalleryManager";
@@ -157,14 +157,14 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           </Card>
 
           {/* Contacts décisionnaires */}
-          <ContactsList
-            contacts={(product.contacts as Contact[]) || []}
+          <ProductContactsClient
+            productId={product.id}
             productName={product.name}
             productCategory={product.category}
             companyName={product.company_name || ''}
-            productId={product.id}
             companyEmail={product.company_email}
             companyWebsite={product.company_website}
+            initialContacts={(product.contacts as Contact[]) || []}
           />
         </div>
 

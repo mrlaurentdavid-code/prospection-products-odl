@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { BrandStatusBadge } from "@/components/BrandStatusBadge";
-import { BrandContactsSection } from "@/components/BrandContactsSection";
+import { BrandDetailClient } from "@/components/BrandDetailClient";
 
 interface BrandDetailPageProps {
   params: Promise<{
@@ -212,13 +212,13 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
       </Card>
 
       {/* Contacts - Toujours affiché pour permettre l'ajout manuel */}
-      <BrandContactsSection
-        contacts={brand.contacts || []}
+      <BrandDetailClient
         brandId={brand.id}
         brandName={brand.name}
         brandDescription={brand.description}
         companyName={brand.company_name}
         categories={brand.categories || []}
+        initialContacts={brand.contacts || []}
       />
 
       {/* Brand Images */}
