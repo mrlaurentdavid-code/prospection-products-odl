@@ -140,7 +140,6 @@ async function searchLushaContactsSimplified(options: LushaSearchOptions): Promi
           },
         },
       },
-      includePartialContacts: true,
     };
 
     const response = await fetch(`${LUSHA_API_BASE}/prospecting/contact/search`, {
@@ -263,7 +262,6 @@ export async function searchLushaContacts(options: LushaSearchOptions): Promise<
           },
         },
       },
-      includePartialContacts: true,
     };
 
     // Ajouter le filtre de localisation
