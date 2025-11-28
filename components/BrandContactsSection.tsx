@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Mail } from 'lucide-react';
 import { BrandEmailComposer } from './BrandEmailComposer';
 import { AddContactModal } from '@/components/AddContactModal';
+import { EditContactModal } from '@/components/EditContactModal';
 import {
   Select,
   SelectContent,
@@ -84,6 +85,8 @@ export function BrandContactsSection({
   const [selectedContact, setSelectedContact] = useState<BrandContact | null>(null);
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
+  const [editContactOpen, setEditContactOpen] = useState(false);
+  const [editContactIndex, setEditContactIndex] = useState<number>(-1);
   const [regionFilter, setRegionFilter] = useState('all');
   const [isEnriching, setIsEnriching] = useState(false);
   const [isLushaSearching, setIsLushaSearching] = useState(false);
@@ -96,6 +99,13 @@ export function BrandContactsSection({
     }
     setSelectedContact(contact);
     setEmailComposerOpen(true);
+  };
+
+  // Ouvrir le modal d'édition
+  const handleEditContact = (contact: BrandContact, index: number) => {
+    setSelectedContact(contact);
+    setEditContactIndex(index);
+    setEditContactOpen(true);
   };
 
   // Ajouter un contact manuellement
@@ -113,6 +123,47 @@ export function BrandContactsSection({
     if (!response.ok) {
       const data = await response.json();
       throw new Error(data.error || 'Erreur lors de l\'ajout');
+    }
+
+    const data = await response.json();
+    if (onContactsUpdate) {
+      onContactsUpdate(data.contacts);
+    }
+  };
+
+  // Mettre à jour un contact
+  const handleSaveContact = async (contact: Contact, index: number) => {
+    const response = await fetch('/api/contacts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entityType: 'brand',
+        entityId: brandId,
+        contactIndex: index,
+        contact,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Erreur lors de la mise à jour');
+    }
+
+    const data = await response.json();
+    if (onContactsUpdate) {
+      onContactsUpdate(data.contacts);
+    }
+  };
+
+  // Supprimer un contact
+  const handleDeleteContact = async (index: number) => {
+    const response = await fetch(`/api/contacts?entityType=brand&entityId=${brandId}&contactIndex=${index}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Erreur lors de la suppression');
     }
 
     const data = await response.json();
@@ -286,22 +337,11 @@ export function BrandContactsSection({
                 </div>
                 <div className="mt-3 space-y-1 text-sm">
                   {contact.email && (
-                    <div className="flex items-center justify-between">
-                      <p>
-                        📧 <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">
-                          {contact.email}
-                        </a>
-                      </p>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleContactClick(contact)}
-                        className="ml-2"
-                      >
-                        <Mail className="w-4 h-4 mr-1" />
-                        Contacter
-                      </Button>
-                    </div>
+                    <p>
+                      📧 <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">
+                        {contact.email}
+                      </a>
+                    </p>
                   )}
                   {contact.linkedin_url && (
                     <p>
@@ -322,6 +362,28 @@ export function BrandContactsSection({
                     <p className="text-xs text-gray-500">
                       Source: {contact.source === 'hunter_io' ? 'Hunter.io' : contact.source === 'claude_extraction' ? 'Claude AI' : contact.source === 'lusha' ? 'Lusha' : contact.source === 'manual' ? 'Manuel' : contact.source}
                     </p>
+                  )}
+                </div>
+                {/* Actions: Modifier + Contacter */}
+                <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                    onClick={() => handleEditContact(contact, idx)}
+                    title="Modifier"
+                  >
+                    ✏️
+                  </Button>
+                  {contact.email && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleContactClick(contact)}
+                    >
+                      <Mail className="w-4 h-4 mr-1" />
+                      Contacter
+                    </Button>
                   )}
                 </div>
               </div>
@@ -356,6 +418,21 @@ export function BrandContactsSection({
         entityId={brandId}
         entityName={brandName}
       />
+
+      {/* Modal d'édition de contact */}
+      {selectedContact && editContactIndex >= 0 && (
+        <EditContactModal
+          open={editContactOpen}
+          onClose={() => {
+            setEditContactOpen(false);
+            setEditContactIndex(-1);
+          }}
+          onSave={handleSaveContact}
+          onDelete={handleDeleteContact}
+          contact={selectedContact as Contact}
+          contactIndex={editContactIndex}
+        />
+      )}
     </>
   );
 }
