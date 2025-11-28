@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmailComposer } from '@/components/EmailComposer';
 import { AddContactModal } from '@/components/AddContactModal';
+import { EditContactModal } from '@/components/EditContactModal';
 import {
   Select,
   SelectContent,
@@ -116,6 +117,8 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
   const [emailComposerOpen, setEmailComposerOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [addContactOpen, setAddContactOpen] = useState(false);
+  const [editContactOpen, setEditContactOpen] = useState(false);
+  const [editContactIndex, setEditContactIndex] = useState<number>(-1);
   const [regionFilter, setRegionFilter] = useState('all');
   const [isEnriching, setIsEnriching] = useState(false);
   const [isLushaSearching, setIsLushaSearching] = useState(false);
@@ -124,6 +127,13 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
   const handleContactClick = (contact: Contact) => {
     setSelectedContact(contact);
     setEmailComposerOpen(true);
+  };
+
+  // Ouvrir le modal d'édition
+  const handleEditContact = (contact: Contact, index: number) => {
+    setSelectedContact(contact);
+    setEditContactIndex(index);
+    setEditContactOpen(true);
   };
 
   // Ajouter un contact manuellement
@@ -141,6 +151,47 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
     if (!response.ok) {
       const data = await response.json();
       throw new Error(data.error || 'Erreur lors de l\'ajout');
+    }
+
+    const data = await response.json();
+    if (onContactsUpdate) {
+      onContactsUpdate(data.contacts);
+    }
+  };
+
+  // Mettre à jour un contact
+  const handleSaveContact = async (contact: Contact, index: number) => {
+    const response = await fetch('/api/contacts', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entityType: 'product',
+        entityId: productId,
+        contactIndex: index,
+        contact,
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Erreur lors de la mise à jour');
+    }
+
+    const data = await response.json();
+    if (onContactsUpdate) {
+      onContactsUpdate(data.contacts);
+    }
+  };
+
+  // Supprimer un contact
+  const handleDeleteContact = async (index: number) => {
+    const response = await fetch(`/api/contacts?entityType=product&entityId=${productId}&contactIndex=${index}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Erreur lors de la suppression');
     }
 
     const data = await response.json();
@@ -500,13 +551,24 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
                 </span>
               </div>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleContactClick(contact)}
-              >
-                Contacter
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                  onClick={() => handleEditContact(contact, index)}
+                  title="Modifier"
+                >
+                  ✏️
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleContactClick(contact)}
+                >
+                  Contacter
+                </Button>
+              </div>
             </div>
           </div>
         ))}
@@ -536,6 +598,21 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
         entityId={productId}
         entityName={productName}
       />
+
+      {/* Modal d'édition de contact */}
+      {selectedContact && editContactIndex >= 0 && (
+        <EditContactModal
+          open={editContactOpen}
+          onClose={() => {
+            setEditContactOpen(false);
+            setEditContactIndex(-1);
+          }}
+          onSave={handleSaveContact}
+          onDelete={handleDeleteContact}
+          contact={selectedContact}
+          contactIndex={editContactIndex}
+        />
+      )}
     </>
   );
 }
