@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { EmailComposer } from '@/components/EmailComposer';
 import { AddContactModal } from '@/components/AddContactModal';
 import { EditContactModal } from '@/components/EditContactModal';
+import { LushaSearchModal } from '@/components/LushaSearchModal';
 import {
   Select,
   SelectContent,
@@ -121,8 +122,16 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
   const [editContactIndex, setEditContactIndex] = useState<number>(-1);
   const [regionFilter, setRegionFilter] = useState('all');
   const [isEnriching, setIsEnriching] = useState(false);
-  const [isLushaSearching, setIsLushaSearching] = useState(false);
-  const [lushaCredits, setLushaCredits] = useState<number | null>(null);
+  const [lushaModalOpen, setLushaModalOpen] = useState(false);
+
+  // Extraire le domaine du site web
+  const companyDomain = companyWebsite ? (() => {
+    try {
+      return new URL(companyWebsite).hostname.replace('www.', '');
+    } catch {
+      return undefined;
+    }
+  })() : undefined;
 
   const handleContactClick = (contact: Contact) => {
     setSelectedContact(contact);
@@ -230,46 +239,10 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
     }
   };
 
-  // Recherche avancée Lusha (consomme des crédits)
-  const handleLushaSearch = async () => {
-    if (!confirm('Recherche Lusha (consomme des crédits). Continuer?')) return;
-
-    setIsLushaSearching(true);
-    try {
-      const response = await fetch('/api/contacts/enrich', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          entityType: 'product',
-          entityId: productId,
-          useLusha: true,
-          lushaRegion: regionFilter === 'all' ? 'DACH' : regionFilter,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la recherche Lusha');
-      }
-
-      const data = await response.json();
-      if (onContactsUpdate) {
-        onContactsUpdate(data.contacts);
-      }
-
-      // Mettre à jour les crédits restants
-      if (data.lusha?.creditsRemaining !== undefined) {
-        setLushaCredits(data.lusha.creditsRemaining);
-      }
-
-      // Afficher le résultat
-      const lushaCount = data.stats?.lushaFound || 0;
-      alert(`Recherche Lusha terminée: ${lushaCount} contact(s) trouvé(s)${data.lusha?.creditsRemaining !== null ? ` (Crédits restants: ${data.lusha.creditsRemaining})` : ''}`);
-    } catch (error) {
-      console.error('Erreur Lusha:', error);
-      alert(error instanceof Error ? error.message : 'Erreur lors de la recherche Lusha');
-    } finally {
-      setIsLushaSearching(false);
+  // Handler pour les contacts ajoutés via Lusha modal
+  const handleLushaContactsAdded = (newContacts: Contact[]) => {
+    if (onContactsUpdate && newContacts.length > 0) {
+      onContactsUpdate([...contacts, ...newContacts]);
     }
   };
 
@@ -378,17 +351,17 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
                   size="sm"
                   variant="outline"
                   onClick={handleReEnrich}
-                  disabled={isEnriching || isLushaSearching}
+                  disabled={isEnriching}
                 >
                   {isEnriching ? '🔄 Recherche...' : '🔍 Rechercher'}
                 </Button>
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={handleLushaSearch}
-                  disabled={isEnriching || isLushaSearching}
+                  onClick={() => setLushaModalOpen(true)}
+                  title="Recherche avancée Lusha"
                 >
-                  {isLushaSearching ? '🔄' : '🔮'} Lusha
+                  🔮 Lusha
                 </Button>
                 <Button size="sm" onClick={() => setAddContactOpen(true)}>
                   + Ajouter
@@ -416,6 +389,17 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
           entityType="product"
           entityId={productId}
           entityName={productName}
+        />
+
+        {/* Modal de recherche Lusha */}
+        <LushaSearchModal
+          open={lushaModalOpen}
+          onClose={() => setLushaModalOpen(false)}
+          onContactsAdded={handleLushaContactsAdded}
+          entityType="product"
+          entityId={productId}
+          companyName={companyName}
+          companyDomain={companyDomain}
         />
       </>
     );
@@ -448,18 +432,17 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
                 size="sm"
                 variant="outline"
                 onClick={handleReEnrich}
-                disabled={isEnriching || isLushaSearching}
+                disabled={isEnriching}
               >
                 {isEnriching ? '🔄' : '🔍'} Enrichir
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={handleLushaSearch}
-                disabled={isEnriching || isLushaSearching}
-                title={lushaCredits !== null ? `Crédits Lusha: ${lushaCredits}` : 'Recherche avancée Lusha'}
+                onClick={() => setLushaModalOpen(true)}
+                title="Recherche avancée Lusha"
               >
-                {isLushaSearching ? '🔄' : '🔮'} Lusha
+                🔮 Lusha
               </Button>
               <Button size="sm" onClick={() => setAddContactOpen(true)}>
                 + Ajouter
@@ -613,6 +596,17 @@ export function ContactsList({ contacts, productName, productCategory, companyNa
           contactIndex={editContactIndex}
         />
       )}
+
+      {/* Modal de recherche Lusha */}
+      <LushaSearchModal
+        open={lushaModalOpen}
+        onClose={() => setLushaModalOpen(false)}
+        onContactsAdded={handleLushaContactsAdded}
+        entityType="product"
+        entityId={productId}
+        companyName={companyName}
+        companyDomain={companyDomain}
+      />
     </>
   );
 }

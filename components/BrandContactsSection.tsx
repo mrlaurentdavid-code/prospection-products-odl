@@ -8,6 +8,7 @@ import { Mail } from 'lucide-react';
 import { BrandEmailComposer } from './BrandEmailComposer';
 import { AddContactModal } from '@/components/AddContactModal';
 import { EditContactModal } from '@/components/EditContactModal';
+import { LushaSearchModal } from '@/components/LushaSearchModal';
 import {
   Select,
   SelectContent,
@@ -45,6 +46,7 @@ interface BrandContactsSectionProps {
   brandName: string;
   brandDescription: string | null;
   companyName: string;
+  companyWebsite?: string | null;
   categories: string[];
   onContactsUpdate?: (contacts: BrandContact[]) => void;
 }
@@ -79,6 +81,7 @@ export function BrandContactsSection({
   brandName,
   brandDescription,
   companyName,
+  companyWebsite,
   categories,
   onContactsUpdate,
 }: BrandContactsSectionProps) {
@@ -87,10 +90,12 @@ export function BrandContactsSection({
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [editContactOpen, setEditContactOpen] = useState(false);
   const [editContactIndex, setEditContactIndex] = useState<number>(-1);
+  const [lushaModalOpen, setLushaModalOpen] = useState(false);
   const [regionFilter, setRegionFilter] = useState('all');
   const [isEnriching, setIsEnriching] = useState(false);
-  const [isLushaSearching, setIsLushaSearching] = useState(false);
-  const [lushaCredits, setLushaCredits] = useState<number | null>(null);
+
+  // Extraire le domaine du site web
+  const companyDomain = companyWebsite ? new URL(companyWebsite).hostname.replace('www.', '') : undefined;
 
   const handleContactClick = (contact: BrandContact) => {
     if (!contact.email) {
@@ -202,46 +207,10 @@ export function BrandContactsSection({
     }
   };
 
-  // Recherche avancée Lusha (consomme des crédits)
-  const handleLushaSearch = async () => {
-    if (!confirm('Recherche Lusha (consomme des crédits). Continuer?')) return;
-
-    setIsLushaSearching(true);
-    try {
-      const response = await fetch('/api/contacts/enrich', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          entityType: 'brand',
-          entityId: brandId,
-          useLusha: true,
-          lushaRegion: regionFilter === 'all' ? 'DACH' : regionFilter,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de la recherche Lusha');
-      }
-
-      const data = await response.json();
-      if (onContactsUpdate) {
-        onContactsUpdate(data.contacts);
-      }
-
-      // Mettre à jour les crédits restants
-      if (data.lusha?.creditsRemaining !== undefined) {
-        setLushaCredits(data.lusha.creditsRemaining);
-      }
-
-      // Afficher le résultat
-      const lushaCount = data.stats?.lushaFound || 0;
-      alert(`Recherche Lusha terminée: ${lushaCount} contact(s) trouvé(s)${data.lusha?.creditsRemaining !== null ? ` (Crédits restants: ${data.lusha.creditsRemaining})` : ''}`);
-    } catch (error) {
-      console.error('Erreur Lusha:', error);
-      alert(error instanceof Error ? error.message : 'Erreur lors de la recherche Lusha');
-    } finally {
-      setIsLushaSearching(false);
+  // Handler pour les contacts ajoutés via Lusha
+  const handleLushaContactsAdded = (newContacts: any[]) => {
+    if (onContactsUpdate && newContacts.length > 0) {
+      onContactsUpdate([...contacts, ...newContacts]);
     }
   };
 
@@ -275,18 +244,17 @@ export function BrandContactsSection({
                 size="sm"
                 variant="outline"
                 onClick={handleReEnrich}
-                disabled={isEnriching || isLushaSearching}
+                disabled={isEnriching}
               >
                 {isEnriching ? '🔄' : '🔍'} Enrichir
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={handleLushaSearch}
-                disabled={isEnriching || isLushaSearching}
-                title={lushaCredits !== null ? `Crédits Lusha: ${lushaCredits}` : 'Recherche avancée Lusha'}
+                onClick={() => setLushaModalOpen(true)}
+                title="Recherche avancée Lusha"
               >
-                {isLushaSearching ? '🔄' : '🔮'} Lusha
+                🔮 Lusha
               </Button>
               <Button size="sm" onClick={() => setAddContactOpen(true)}>
                 + Ajouter
@@ -433,6 +401,17 @@ export function BrandContactsSection({
           contactIndex={editContactIndex}
         />
       )}
+
+      {/* Modal de recherche Lusha */}
+      <LushaSearchModal
+        open={lushaModalOpen}
+        onClose={() => setLushaModalOpen(false)}
+        onContactsAdded={handleLushaContactsAdded}
+        entityType="brand"
+        entityId={brandId}
+        companyName={companyName}
+        companyDomain={companyDomain}
+      />
     </>
   );
 }
