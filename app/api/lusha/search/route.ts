@@ -111,22 +111,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const searchData = await searchResponse.json();
-    console.log(`✅ Lusha found ${searchData.data?.length || 0} contacts`);
+    let searchData = await searchResponse.json();
+    console.log(`✅ Lusha found ${searchData.data?.length || 0} contacts (with region filter: ${region})`);
+
+    // Si aucun résultat avec le filtre région, réessayer SANS filtre
+    if ((!searchData.data || searchData.data.length === 0) && region !== 'ALL') {
+      console.log('🔄 No results with region filter, retrying without location filter...');
+
+      const searchBodyNoFilter: Record<string, unknown> = {
+        pages: { page: 0, size: 25 },
+        filters: {
+          companies: {
+            include: companyFilters,
+          },
+        },
+      };
+
+      const retryResponse = await fetch(`${LUSHA_API_BASE}/prospecting/contact/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'api_key': apiKey,
+        },
+        body: JSON.stringify(searchBodyNoFilter),
+      });
+
+      if (retryResponse.ok) {
+        searchData = await retryResponse.json();
+        console.log(`✅ Retry without filter found ${searchData.data?.length || 0} contacts`);
+      }
+    }
 
     // Mapper les résultats
     const contacts = (searchData.data || []).map((c: any) => ({
       contactId: c.contactId,
       firstName: c.firstName,
       lastName: c.lastName,
-      fullName: c.fullName || `${c.firstName} ${c.lastName}`.trim(),
+      fullName: c.fullName || c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim(),
       jobTitle: c.jobTitle,
-      company: c.company,
+      company: c.companyName || c.company,
       country: c.country,
       city: c.city,
       linkedinUrl: c.linkedinUrl,
-      hasEmail: c.existingDataPoints?.includes('work_email') || false,
-      hasPhone: c.existingDataPoints?.includes('work_phone') || false,
+      hasEmail: c.hasWorkEmail || c.existingDataPoints?.includes('work_email') || false,
+      hasPhone: c.hasDirectPhone || c.hasMobilePhone || c.existingDataPoints?.includes('work_phone') || false,
     }));
 
     // Récupérer les crédits restants
