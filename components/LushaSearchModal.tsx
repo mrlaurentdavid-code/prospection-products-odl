@@ -44,6 +44,7 @@ interface LushaSearchModalProps {
   entityId: string;
   companyName: string;
   companyDomain?: string;
+  brandName?: string; // Nom de la marque (peut être différent du companyName)
 }
 
 // Régions pour le filtre
@@ -65,6 +66,7 @@ export function LushaSearchModal({
   entityId,
   companyName,
   companyDomain,
+  brandName,
 }: LushaSearchModalProps) {
   // États
   const [step, setStep] = useState<'search' | 'select' | 'confirm' | 'result'>('search');
@@ -109,6 +111,7 @@ export function LushaSearchModal({
         body: JSON.stringify({
           companyName,
           companyDomain,
+          brandName,
           region,
         }),
       });

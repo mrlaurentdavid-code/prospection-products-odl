@@ -30,9 +30,9 @@ const SALES_DEPARTMENTS = [
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { companyName, companyDomain, region = 'DACH' } = body;
+    const { companyName, companyDomain, region = 'DACH', brandName } = body;
 
-    console.log('🔮 Lusha Search API:', { companyName, companyDomain, region });
+    console.log('🔮 Lusha Search API:', { companyName, companyDomain, brandName, region });
 
     // Vérifier l'authentification
     const supabase = await createClient();
@@ -49,32 +49,40 @@ export async function POST(request: NextRequest) {
     }
 
     // Construire la requête de recherche
+    // PRIORITÉ: domain > brandName > companyName
+    // On utilise le domain si disponible car c'est plus fiable
     const targetCountries = REGION_COUNTRIES[region] || [];
+
+    // Construire les filtres company
+    const companyFilters: Record<string, unknown> = {};
+    if (companyDomain) {
+      // Si on a un domain, on l'utilise en priorité (plus fiable)
+      companyFilters.domains = [companyDomain];
+    } else if (brandName) {
+      // Sinon on cherche par nom de marque
+      companyFilters.names = [brandName];
+    } else if (companyName) {
+      // En dernier recours, le nom de l'entreprise
+      companyFilters.names = [companyName];
+    }
 
     const searchBody: Record<string, unknown> = {
       pages: { page: 0, size: 25 }, // Récupérer jusqu'à 25 contacts
       filters: {
         companies: {
-          include: {
-            ...(companyName ? { names: [companyName] } : {}),
-            ...(companyDomain ? { domains: [companyDomain] } : {}),
-          },
+          include: companyFilters,
         },
-        contacts: {
-          include: {
-            departments: SALES_DEPARTMENTS,
-            seniority: ['3', '4', '5', '6', '7'], // Manager+
-            existing_data_points: ['work_email'], // Ne montrer que ceux avec email
+        // Filtres contacts simplifiés - on ne filtre que sur la localisation si spécifiée
+        // Les filtres departments/seniority sont trop restrictifs
+        ...(targetCountries.length > 0 && region !== 'ALL' ? {
+          contacts: {
+            include: {
+              locations: targetCountries.map(country => ({ country })),
+            },
           },
-        },
+        } : {}),
       },
     };
-
-    // Ajouter filtre de localisation si spécifié
-    if (targetCountries.length > 0) {
-      const filters = searchBody.filters as any;
-      filters.contacts.include.locations = targetCountries.map(country => ({ country }));
-    }
 
     console.log('📤 Lusha search request:', JSON.stringify(searchBody, null, 2));
 

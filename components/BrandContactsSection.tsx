@@ -411,6 +411,7 @@ export function BrandContactsSection({
         entityId={brandId}
         companyName={companyName}
         companyDomain={companyDomain}
+        brandName={brandName}
       />
     </>
   );
