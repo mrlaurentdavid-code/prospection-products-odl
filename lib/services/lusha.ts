@@ -152,12 +152,18 @@ async function searchLushaContactsSimplified(options: LushaSearchOptions): Promi
     });
 
     if (!response.ok) {
-      console.error(`❌ Lusha Simplified search failed (${response.status})`);
+      const errorText = await response.text();
+      console.error(`❌ Lusha Simplified search failed (${response.status}):`, errorText);
       return [];
     }
 
     const data = await response.json();
     console.log(`✅ Lusha Simplified found ${data.data?.length || 0} contacts`);
+
+    // Log structure of first contact for debugging
+    if (data.data?.[0]) {
+      console.log('📋 Lusha contact structure:', JSON.stringify(data.data[0], null, 2));
+    }
 
     if (!data.data || data.data.length === 0) {
       return [];
@@ -180,18 +186,33 @@ async function searchLushaContactsSimplified(options: LushaSearchOptions): Promi
     });
 
     if (!enrichResponse.ok) {
-      console.error(`❌ Lusha Simplified enrich failed (${enrichResponse.status})`);
+      const enrichError = await enrichResponse.text();
+      console.error(`❌ Lusha Simplified enrich failed (${enrichResponse.status}):`, enrichError);
       // Retourner les infos de base sans email
-      return data.data.slice(0, limit).map((c: LushaSearchResult) => ({
-        name: c.fullName,
-        title: c.jobTitle || null,
-        email: null,
-        linkedin_url: c.linkedinUrl || null,
-        location: c.city && c.country ? `${c.city}, ${c.country}` : c.country || null,
-        phone: null,
-        source: 'lusha' as const,
-        confidence: 0.7,
-      }));
+      return data.data.slice(0, limit).map((c: any) => {
+        // Handle different possible field names
+        const name = c.fullName || c.full_name ||
+          (c.firstName && c.lastName ? `${c.firstName} ${c.lastName}` : null) ||
+          (c.first_name && c.last_name ? `${c.first_name} ${c.last_name}` : null) ||
+          c.name || null;
+        const title = c.jobTitle || c.job_title || c.title || null;
+        const linkedin = c.linkedinUrl || c.linkedin_url || c.linkedInUrl || null;
+        const country = c.country || c.location?.country || null;
+        const city = c.city || c.location?.city || null;
+
+        console.log(`📝 Mapping contact: name=${name}, title=${title}`);
+
+        return {
+          name,
+          title,
+          email: null,
+          linkedin_url: linkedin,
+          location: city && country ? `${city}, ${country}` : country || null,
+          phone: null,
+          source: 'lusha' as const,
+          confidence: 0.7,
+        };
+      }).filter((c: any) => c.name); // Filter out contacts without names
     }
 
     const enrichData = await enrichResponse.json();
