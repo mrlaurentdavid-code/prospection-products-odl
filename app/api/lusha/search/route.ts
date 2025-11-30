@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     const searchBody: Record<string, unknown> = {
-      pages: { page: 0, size: 25 }, // Récupérer jusqu'à 25 contacts
+      pages: { page: 0, size: 50 }, // Récupérer jusqu'à 50 contacts
       filters: {
         companies: {
           include: companyFilters,
@@ -100,9 +100,30 @@ export async function POST(request: NextRequest) {
       const errorText = await searchResponse.text();
       console.error(`❌ Lusha Search API error (${searchResponse.status}):`, errorText);
 
-      // Si 400, essayer une recherche plus simple
+      // Gestion des erreurs spécifiques
+      if (searchResponse.status === 429) {
+        return NextResponse.json(
+          { error: 'Limite de requêtes Lusha atteinte. Veuillez patienter 1-2 minutes avant de réessayer.' },
+          { status: 429 }
+        );
+      }
+
       if (searchResponse.status === 400) {
         return await handleSimplifiedSearch(apiKey, companyName, companyDomain);
+      }
+
+      if (searchResponse.status === 401) {
+        return NextResponse.json(
+          { error: 'Clé API Lusha invalide ou expirée.' },
+          { status: 401 }
+        );
+      }
+
+      if (searchResponse.status === 402) {
+        return NextResponse.json(
+          { error: 'Crédits Lusha épuisés. Veuillez recharger votre compte.' },
+          { status: 402 }
+        );
       }
 
       return NextResponse.json(
@@ -119,7 +140,7 @@ export async function POST(request: NextRequest) {
       console.log('🔄 No results with region filter, retrying without location filter...');
 
       const searchBodyNoFilter: Record<string, unknown> = {
-        pages: { page: 0, size: 25 },
+        pages: { page: 0, size: 50 },
         filters: {
           companies: {
             include: companyFilters,
@@ -142,7 +163,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Mapper les résultats
+    // Log de la structure du premier contact pour debug
+    if (searchData.data?.[0]) {
+      console.log('📋 Lusha contact structure sample:', JSON.stringify(searchData.data[0], null, 2));
+    }
+
+    // Mapper les résultats avec toutes les infos disponibles
     const contacts = (searchData.data || []).map((c: any) => ({
       contactId: c.contactId,
       firstName: c.firstName,
@@ -150,11 +176,15 @@ export async function POST(request: NextRequest) {
       fullName: c.fullName || c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim(),
       jobTitle: c.jobTitle,
       company: c.companyName || c.company,
-      country: c.country,
-      city: c.city,
-      linkedinUrl: c.linkedinUrl,
-      hasEmail: c.hasWorkEmail || c.existingDataPoints?.includes('work_email') || false,
-      hasPhone: c.hasDirectPhone || c.hasMobilePhone || c.existingDataPoints?.includes('work_phone') || false,
+      companyDomain: c.fqdn || c.companyDomain,
+      companyDescription: c.companyDescription ? c.companyDescription.substring(0, 200) : null, // Limiter à 200 chars
+      country: c.country || c.companyCountry,
+      city: c.city || c.companyCity,
+      linkedinUrl: c.linkedinUrl || c.socialLink,
+      hasEmail: c.hasWorkEmail || c.hasEmails || c.existingDataPoints?.includes('work_email') || false,
+      hasPhone: c.hasDirectPhone || c.hasMobilePhone || c.hasPhones || c.existingDataPoints?.includes('work_phone') || false,
+      hasLocation: c.hasContactLocation || c.hasCompanyCountry || c.hasCompanyCity || false,
+      hasLinkedin: c.hasSocialLink || false,
     }));
 
     // Récupérer les crédits restants

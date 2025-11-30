@@ -9,6 +9,7 @@ import { BrandEmailComposer } from './BrandEmailComposer';
 import { AddContactModal } from '@/components/AddContactModal';
 import { EditContactModal } from '@/components/EditContactModal';
 import { LushaSearchModal } from '@/components/LushaSearchModal';
+import { ApifySearchModal } from '@/components/ApifySearchModal';
 import {
   Select,
   SelectContent,
@@ -91,6 +92,7 @@ export function BrandContactsSection({
   const [editContactOpen, setEditContactOpen] = useState(false);
   const [editContactIndex, setEditContactIndex] = useState<number>(-1);
   const [lushaModalOpen, setLushaModalOpen] = useState(false);
+  const [apifyModalOpen, setApifyModalOpen] = useState(false);
   const [regionFilter, setRegionFilter] = useState('all');
   const [isEnriching, setIsEnriching] = useState(false);
 
@@ -214,6 +216,13 @@ export function BrandContactsSection({
     }
   };
 
+  // Handler pour les contacts ajoutés via Apify
+  const handleApifyContactsAdded = (newContacts: any[]) => {
+    if (onContactsUpdate && newContacts.length > 0) {
+      onContactsUpdate([...contacts, ...newContacts]);
+    }
+  };
+
   // Filtrer les contacts par région
   const filteredContacts = filterContactsByRegion(contacts || [], regionFilter);
 
@@ -255,6 +264,15 @@ export function BrandContactsSection({
                 title="Recherche avancée Lusha"
               >
                 🔮 Lusha
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setApifyModalOpen(true)}
+                title="Recherche LinkedIn via Apify"
+                className="bg-amber-100 hover:bg-amber-200 text-amber-800"
+              >
+                🐝 Apify
               </Button>
               <Button size="sm" onClick={() => setAddContactOpen(true)}>
                 + Ajouter
@@ -407,6 +425,18 @@ export function BrandContactsSection({
         open={lushaModalOpen}
         onClose={() => setLushaModalOpen(false)}
         onContactsAdded={handleLushaContactsAdded}
+        entityType="brand"
+        entityId={brandId}
+        companyName={companyName}
+        companyDomain={companyDomain}
+        brandName={brandName}
+      />
+
+      {/* Modal de recherche Apify (LinkedIn) */}
+      <ApifySearchModal
+        open={apifyModalOpen}
+        onClose={() => setApifyModalOpen(false)}
+        onContactsAdded={handleApifyContactsAdded}
         entityType="brand"
         entityId={brandId}
         companyName={companyName}

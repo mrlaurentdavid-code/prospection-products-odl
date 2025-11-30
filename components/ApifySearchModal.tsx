@@ -13,34 +13,30 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
-// Type pour les contacts Lusha (résultat de recherche gratuit)
-interface LushaSearchContact {
+// Type pour les contacts Apify (résultat de recherche LinkedIn)
+interface ApifySearchContact {
   contactId: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   fullName: string;
   jobTitle?: string;
   company?: string;
   companyDomain?: string;
-  companyDescription?: string;
   country?: string;
   city?: string;
+  location?: string;
   linkedinUrl?: string;
+  profileImageUrl?: string;
   hasEmail?: boolean;
   hasPhone?: boolean;
   hasLocation?: boolean;
   hasLinkedin?: boolean;
+  email?: string;
+  source?: string;
 }
 
-interface LushaSearchModalProps {
+interface ApifySearchModalProps {
   open: boolean;
   onClose: () => void;
   onContactsAdded: (contacts: any[]) => void;
@@ -48,21 +44,11 @@ interface LushaSearchModalProps {
   entityId: string;
   companyName: string;
   companyDomain?: string;
-  brandName?: string; // Nom de la marque (peut être différent du companyName)
+  brandName?: string;
+  companyLinkedInUrl?: string; // URL LinkedIn de l'entreprise si connue
 }
 
-// Régions pour le filtre
-const REGIONS = [
-  { value: 'DACH', label: 'DACH (DE-AT-CH)' },
-  { value: 'CH', label: 'Suisse' },
-  { value: 'DE', label: 'Allemagne' },
-  { value: 'AT', label: 'Autriche' },
-  { value: 'FR', label: 'France' },
-  { value: 'EU', label: 'Europe' },
-  { value: 'ALL', label: 'Monde entier' },
-];
-
-export function LushaSearchModal({
+export function ApifySearchModal({
   open,
   onClose,
   onContactsAdded,
@@ -71,55 +57,45 @@ export function LushaSearchModal({
   companyName,
   companyDomain,
   brandName,
-}: LushaSearchModalProps) {
+  companyLinkedInUrl,
+}: ApifySearchModalProps) {
   // États
-  const [step, setStep] = useState<'search' | 'select' | 'confirm' | 'result'>('search');
-  const [region, setRegion] = useState('DACH');
-  const [searchQuery, setSearchQuery] = useState(''); // Nom d'entreprise à chercher
+  const [step, setStep] = useState<'search' | 'select' | 'saving'>('search');
+  const [searchQuery, setSearchQuery] = useState(''); // Nom d'entreprise ou URL LinkedIn
+  const [linkedInUrl, setLinkedInUrl] = useState(companyLinkedInUrl || ''); // URL LinkedIn
   const [isSearching, setIsSearching] = useState(false);
-  const [isEnriching, setIsEnriching] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Résultats de recherche
-  const [searchResults, setSearchResults] = useState<LushaSearchContact[]>([]);
+  const [searchResults, setSearchResults] = useState<ApifySearchContact[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
-  const [dataPoints, setDataPoints] = useState<{ email: boolean; phone: boolean }>({ email: true, phone: false });
-
-  // Crédits
-  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
-  const [enrichedContacts, setEnrichedContacts] = useState<any[]>([]);
-
-  // Calculer le coût total
-  const selectedCount = selectedContacts.size;
-  const creditsPerContact = (dataPoints.email ? 1 : 0) + (dataPoints.phone ? 1 : 0);
-  const totalCredits = selectedCount * creditsPerContact;
+  const [savedContacts, setSavedContacts] = useState<any[]>([]);
 
   // Reset à la fermeture
   const handleClose = () => {
     setStep('search');
     setSearchQuery('');
+    setLinkedInUrl(companyLinkedInUrl || '');
     setSearchResults([]);
     setSelectedContacts(new Set());
     setError(null);
-    setEnrichedContacts([]);
+    setSavedContacts([]);
     onClose();
   };
 
-  // Suggestions de recherche basées sur les infos disponibles
+  // Suggestions de recherche
   const searchSuggestions = [
-    brandName && `${brandName} Innovations LTD`,
-    brandName && `${brandName} GmbH`,
-    brandName && `${brandName} Inc`,
-    brandName,
+    brandName && `${brandName}`,
+    brandName && `${brandName} Innovations`,
     companyName !== brandName ? companyName : null,
-  ].filter((s, idx, arr): s is string => !!s && arr.indexOf(s) === idx); // Enlever les doublons
+  ].filter((s, idx, arr): s is string => !!s && arr.indexOf(s) === idx);
 
-  // Étape 1: Recherche gratuite
+  // Recherche via Apify
   const handleSearch = async () => {
-    // Validation
-    const queryToSearch = searchQuery.trim();
+    const queryToSearch = searchQuery.trim() || linkedInUrl.trim();
     if (!queryToSearch) {
-      setError('Veuillez entrer un nom d\'entreprise à rechercher');
+      setError('Veuillez entrer un nom d\'entreprise ou une URL LinkedIn');
       return;
     }
 
@@ -127,14 +103,17 @@ export function LushaSearchModal({
     setError(null);
 
     try {
-      const response = await fetch('/api/lusha/search', {
+      // Déterminer si c'est une URL LinkedIn ou un nom d'entreprise
+      const isLinkedInUrl = queryToSearch.includes('linkedin.com/company/');
+
+      const response = await fetch('/api/apify/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companyName: queryToSearch, // Utiliser la requête saisie
+          companyName: isLinkedInUrl ? undefined : queryToSearch,
           companyDomain,
-          // Ne pas envoyer brandName pour éviter la confusion
-          region,
+          companyLinkedInUrl: isLinkedInUrl ? queryToSearch : linkedInUrl || undefined,
+          maxResults: 50,
         }),
       });
 
@@ -145,12 +124,11 @@ export function LushaSearchModal({
 
       const data = await response.json();
       setSearchResults(data.contacts || []);
-      setCreditsRemaining(data.creditsRemaining);
 
       if (data.contacts?.length > 0) {
         setStep('select');
       } else {
-        setError('Aucun contact trouvé pour cette entreprise');
+        setError(data.error || 'Aucun contact trouvé. Vérifiez le nom ou l\'URL LinkedIn de l\'entreprise.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la recherche');
@@ -179,61 +157,56 @@ export function LushaSearchModal({
     }
   };
 
-  // Passer à la confirmation
-  const handleProceedToConfirm = () => {
+  // Sauvegarder les contacts sélectionnés
+  const handleSaveContacts = async () => {
     if (selectedContacts.size === 0) {
       setError('Sélectionnez au moins un contact');
       return;
     }
-    if (!dataPoints.email && !dataPoints.phone) {
-      setError('Sélectionnez au moins un type de données');
-      return;
-    }
-    setError(null);
-    setStep('confirm');
-  };
 
-  // Étape 3: Enrichissement (payant)
-  const handleEnrich = async () => {
-    setIsEnriching(true);
+    setIsSaving(true);
     setError(null);
 
     try {
-      const contactIds = Array.from(selectedContacts);
-      const dataPointsList: string[] = [];
-      if (dataPoints.email) dataPointsList.push('work_email');
-      if (dataPoints.phone) dataPointsList.push('work_phone');
+      // Filtrer les contacts sélectionnés
+      const contactsToSave = searchResults
+        .filter(c => selectedContacts.has(c.contactId))
+        .map(c => ({
+          name: c.fullName,
+          title: c.jobTitle,
+          location: c.location || [c.city, c.country].filter(Boolean).join(', '),
+          linkedin_url: c.linkedinUrl,
+          email: c.email,
+          source: 'apify',
+        }));
 
-      const response = await fetch('/api/lusha/enrich', {
+      // Appeler l'API contacts pour sauvegarder
+      const response = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contactIds,
-          dataPoints: dataPointsList,
           entityType,
           entityId,
+          contacts: contactsToSave,
         }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Erreur lors de l\'enrichissement');
+        throw new Error(data.error || 'Erreur lors de la sauvegarde');
       }
 
       const data = await response.json();
-      setEnrichedContacts(data.contacts || []);
-      setCreditsRemaining(data.creditsRemaining);
+      setSavedContacts(contactsToSave);
 
-      // Notifier le parent des nouveaux contacts
-      if (data.contacts?.length > 0) {
-        onContactsAdded(data.contacts);
-      }
+      // Notifier le parent
+      onContactsAdded(contactsToSave);
 
-      setStep('result');
+      setStep('saving');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'enrichissement');
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     } finally {
-      setIsEnriching(false);
+      setIsSaving(false);
     }
   };
 
@@ -276,30 +249,28 @@ export function LushaSearchModal({
     return scoreB - scoreA;
   });
 
+  const selectedCount = selectedContacts.size;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <span className="text-xl">🔮</span>
-            Recherche Lusha - {companyName}
+            <span className="text-xl">🐝</span>
+            Recherche Apify (LinkedIn) - {companyName}
           </DialogTitle>
           <DialogDescription>
-            {step === 'search' && 'Recherchez des contacts qualifiés dans cette entreprise'}
-            {step === 'select' && 'Sélectionnez les contacts à enrichir (la recherche est gratuite)'}
-            {step === 'confirm' && 'Confirmez votre sélection avant enrichissement'}
-            {step === 'result' && 'Contacts enrichis avec succès'}
+            {step === 'search' && 'Recherchez des employés via LinkedIn (scraping Apify)'}
+            {step === 'select' && 'Sélectionnez les contacts à ajouter'}
+            {step === 'saving' && 'Contacts ajoutés avec succès'}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Crédits restants */}
-        {creditsRemaining !== null && (
-          <div className="flex justify-end">
-            <Badge variant="outline" className="text-xs">
-              Crédits restants: {creditsRemaining}
-            </Badge>
-          </div>
-        )}
+        {/* Info Apify */}
+        <div className="bg-amber-50 text-amber-800 px-3 py-2 rounded text-xs flex items-center gap-2">
+          <span>💡</span>
+          <span>Apify utilise le scraping LinkedIn - données directes sans crédits par contact</span>
+        </div>
 
         {/* Contenu selon l'étape */}
         <div className="flex-1 overflow-y-auto py-4">
@@ -308,19 +279,16 @@ export function LushaSearchModal({
             <div className="space-y-4">
               {/* Champ de recherche entreprise */}
               <div className="space-y-2">
-                <Label htmlFor="search-query">Nom de l'entreprise à rechercher</Label>
+                <Label htmlFor="search-query">Nom de l'entreprise</Label>
                 <input
                   id="search-query"
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Ex: Anker Innovations Ltd"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: Anker Innovations"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
-                <p className="text-xs text-gray-500">
-                  Saisissez le nom exact du fabricant (pas le distributeur)
-                </p>
               </div>
 
               {/* Suggestions rapides */}
@@ -335,7 +303,7 @@ export function LushaSearchModal({
                         onClick={() => setSearchQuery(suggestion)}
                         className={`text-xs px-3 py-1.5 rounded-full transition-colors ${
                           searchQuery === suggestion
-                            ? 'bg-blue-600 text-white'
+                            ? 'bg-amber-600 text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
@@ -346,31 +314,30 @@ export function LushaSearchModal({
                 </div>
               )}
 
-              {/* Région cible */}
+              {/* URL LinkedIn optionnelle */}
               <div className="space-y-2">
-                <Label>Région cible (optionnel)</Label>
-                <Select value={region} onValueChange={setRegion}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REGIONS.map(r => (
-                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="linkedin-url">URL LinkedIn de l'entreprise (optionnel)</Label>
+                <input
+                  id="linkedin-url"
+                  type="text"
+                  value={linkedInUrl}
+                  onChange={(e) => setLinkedInUrl(e.target.value)}
+                  placeholder="Ex: https://www.linkedin.com/company/anker-innovations"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                />
                 <p className="text-xs text-gray-500">
-                  Si aucun résultat, la recherche s'élargira automatiquement au monde entier
+                  Plus fiable si vous avez l'URL exacte LinkedIn de l'entreprise
                 </p>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg text-sm">
-                <p className="font-medium text-blue-800 mb-2">Comment ça marche ?</p>
-                <ol className="list-decimal list-inside space-y-1 text-blue-700">
-                  <li><strong>Recherche gratuite</strong> - Voir les contacts disponibles</li>
-                  <li><strong>Sélection</strong> - Choisir les contacts pertinents</li>
-                  <li><strong>Enrichissement</strong> - Révéler email/téléphone (1-2 crédits/contact)</li>
-                </ol>
+              <div className="bg-green-50 p-4 rounded-lg text-sm">
+                <p className="font-medium text-green-800 mb-2">Avantages Apify vs Lusha</p>
+                <ul className="list-disc list-inside space-y-1 text-green-700">
+                  <li><strong>Pas de crédits</strong> - Coût fixe par recherche</li>
+                  <li><strong>Localisation visible</strong> - Données LinkedIn directes</li>
+                  <li><strong>Plus de résultats</strong> - Pas de limite stricte</li>
+                  <li><strong>URLs LinkedIn</strong> - Accès direct aux profils</li>
+                </ul>
               </div>
 
               {error && (
@@ -401,14 +368,14 @@ export function LushaSearchModal({
                 {sortedResults.map((contact) => {
                   const relevance = getTitleRelevanceScore(contact.jobTitle);
                   const isSelected = selectedContacts.has(contact.contactId);
-                  const location = [contact.city, contact.country].filter(Boolean).join(', ');
+                  const location = contact.location || [contact.city, contact.country].filter(Boolean).join(', ');
 
                   return (
                     <div
                       key={contact.contactId}
                       className={`p-4 border rounded-lg cursor-pointer transition-all ${
                         isSelected
-                          ? 'border-blue-500 bg-blue-50 shadow-sm'
+                          ? 'border-amber-500 bg-amber-50 shadow-sm'
                           : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                       }`}
                       onClick={() => toggleContact(contact.contactId)}
@@ -432,20 +399,11 @@ export function LushaSearchModal({
                             <p className="text-sm font-medium text-gray-700 mt-1">{contact.jobTitle}</p>
                           )}
 
-                          {/* Ligne 3: Entreprise + Domaine */}
-                          {(contact.company || contact.companyDomain) && (
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              {contact.company && (
-                                <span className="text-sm text-gray-600">
-                                  <span className="text-gray-400">@</span> {contact.company}
-                                </span>
-                              )}
-                              {contact.companyDomain && (
-                                <span className="text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-mono">
-                                  {contact.companyDomain}
-                                </span>
-                              )}
-                            </div>
+                          {/* Ligne 3: Entreprise */}
+                          {contact.company && (
+                            <p className="text-sm text-gray-600 mt-0.5">
+                              <span className="text-gray-400">@</span> {contact.company}
+                            </p>
                           )}
 
                           {/* Ligne 4: Infos supplémentaires */}
@@ -455,12 +413,7 @@ export function LushaSearchModal({
                                 📍 {location}
                               </span>
                             )}
-                            {!location && contact.hasLocation && (
-                              <span className="inline-flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
-                                📍 Localisation disponible
-                              </span>
-                            )}
-                            {contact.linkedinUrl ? (
+                            {contact.linkedinUrl && (
                               <a
                                 href={contact.linkedinUrl}
                                 target="_blank"
@@ -470,31 +423,10 @@ export function LushaSearchModal({
                               >
                                 🔗 LinkedIn
                               </a>
-                            ) : contact.hasLinkedin && (
-                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                                🔗 LinkedIn dispo
-                              </span>
                             )}
-                          </div>
-
-                          {/* Ligne 5: Disponibilité des données */}
-                          <div className="flex items-center gap-3 mt-2">
-                            {contact.hasEmail ? (
+                            {contact.email && (
                               <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded">
-                                ✓ Email disponible
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
-                                ✗ Pas d'email
-                              </span>
-                            )}
-                            {contact.hasPhone ? (
-                              <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded">
-                                ✓ Tél disponible
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-xs text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
-                                ✗ Pas de tél
+                                📧 {contact.email}
                               </span>
                             )}
                           </div>
@@ -505,93 +437,18 @@ export function LushaSearchModal({
                 })}
               </div>
 
-              {/* Options de données */}
-              <div className="pt-4 border-t space-y-3">
-                <Label>Données à révéler :</Label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={dataPoints.email}
-                      onCheckedChange={(checked) => setDataPoints(prev => ({ ...prev, email: !!checked }))}
-                    />
-                    <span className="text-sm">Email professionnel (1 crédit)</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={dataPoints.phone}
-                      onCheckedChange={(checked) => setDataPoints(prev => ({ ...prev, phone: !!checked }))}
-                    />
-                    <span className="text-sm">Téléphone (+1 crédit)</span>
-                  </label>
-                </div>
-              </div>
-
               {error && (
                 <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>
               )}
             </div>
           )}
 
-          {/* ÉTAPE 3: Confirmation */}
-          {step === 'confirm' && (
-            <div className="space-y-4">
-              <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
-                <p className="font-medium text-amber-800 mb-3">Récapitulatif de votre commande</p>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Contacts sélectionnés</span>
-                    <span className="font-medium">{selectedCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Données demandées</span>
-                    <span>
-                      {[dataPoints.email && 'Email', dataPoints.phone && 'Téléphone'].filter(Boolean).join(' + ')}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Coût par contact</span>
-                    <span>{creditsPerContact} crédit(s)</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-amber-300 font-bold text-amber-900">
-                    <span>TOTAL</span>
-                    <span>{totalCredits} crédits</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Liste des contacts sélectionnés */}
-              <div className="space-y-2">
-                <Label>Contacts à enrichir :</Label>
-                <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                  {sortedResults
-                    .filter(c => selectedContacts.has(c.contactId))
-                    .map(contact => (
-                      <div key={contact.contactId} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
-                        <span className="font-medium">{contact.fullName}</span>
-                        {contact.jobTitle && <span className="text-gray-500">- {contact.jobTitle}</span>}
-                      </div>
-                    ))}
-                </div>
-              </div>
-
-              {creditsRemaining !== null && totalCredits > creditsRemaining && (
-                <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">
-                  Attention: Vous n'avez que {creditsRemaining} crédits disponibles
-                </div>
-              )}
-
-              {error && (
-                <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm">{error}</div>
-              )}
-            </div>
-          )}
-
-          {/* ÉTAPE 4: Résultat */}
-          {step === 'result' && (
+          {/* ÉTAPE 3: Résultat */}
+          {step === 'saving' && (
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
                 <p className="font-medium text-green-800 mb-2">
-                  ✅ {enrichedContacts.length} contact(s) enrichi(s) avec succès !
+                  ✅ {savedContacts.length} contact(s) ajouté(s) avec succès !
                 </p>
                 <p className="text-sm text-green-700">
                   Les contacts ont été ajoutés à votre liste.
@@ -599,7 +456,7 @@ export function LushaSearchModal({
               </div>
 
               <div className="space-y-2">
-                {enrichedContacts.map((contact, idx) => (
+                {savedContacts.map((contact, idx) => (
                   <div key={idx} className="p-3 border rounded-lg">
                     <p className="font-medium">{contact.name}</p>
                     {contact.title && <p className="text-sm text-gray-600">{contact.title}</p>}
@@ -607,8 +464,17 @@ export function LushaSearchModal({
                       {contact.email && (
                         <p className="text-blue-600">📧 {contact.email}</p>
                       )}
-                      {contact.phone && (
-                        <p className="text-gray-700">📞 {contact.phone}</p>
+                      {contact.linkedin_url && (
+                        <p>
+                          <a
+                            href={contact.linkedin_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            🔗 LinkedIn
+                          </a>
+                        </p>
                       )}
                       {contact.location && (
                         <p className="text-gray-500">📍 {contact.location}</p>
@@ -626,8 +492,12 @@ export function LushaSearchModal({
           {step === 'search' && (
             <>
               <Button variant="outline" onClick={handleClose}>Annuler</Button>
-              <Button onClick={handleSearch} disabled={isSearching}>
-                {isSearching ? '🔄 Recherche...' : '🔍 Rechercher'}
+              <Button
+                onClick={handleSearch}
+                disabled={isSearching}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {isSearching ? '🔄 Recherche...' : '🔍 Rechercher sur LinkedIn'}
               </Button>
             </>
           )}
@@ -635,25 +505,17 @@ export function LushaSearchModal({
           {step === 'select' && (
             <>
               <Button variant="outline" onClick={() => setStep('search')}>Retour</Button>
-              <Button onClick={handleProceedToConfirm} disabled={selectedContacts.size === 0}>
-                Continuer ({selectedCount} sélectionné{selectedCount > 1 ? 's' : ''})
-              </Button>
-            </>
-          )}
-
-          {step === 'confirm' && (
-            <>
-              <Button variant="outline" onClick={() => setStep('select')}>Retour</Button>
               <Button
-                onClick={handleEnrich}
-                disabled={isEnriching || (creditsRemaining !== null && totalCredits > creditsRemaining)}
+                onClick={handleSaveContacts}
+                disabled={selectedContacts.size === 0 || isSaving}
+                className="bg-amber-600 hover:bg-amber-700"
               >
-                {isEnriching ? '🔄 Enrichissement...' : `💳 Confirmer (${totalCredits} crédits)`}
+                {isSaving ? '🔄 Sauvegarde...' : `✅ Ajouter ${selectedCount} contact(s)`}
               </Button>
             </>
           )}
 
-          {step === 'result' && (
+          {step === 'saving' && (
             <Button onClick={handleClose}>Fermer</Button>
           )}
         </DialogFooter>
